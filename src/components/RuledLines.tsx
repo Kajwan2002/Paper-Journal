@@ -17,7 +17,6 @@ import "./ruled-lines.css";
 interface Props {
   lines: Line[];
   onChange: (lines: Line[]) => void;
-  /** faint prompt shown when the page is completely empty */
   placeholder?: string;
 }
 
@@ -25,23 +24,19 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
   const inputs = useRef<Map<string, HTMLInputElement>>(new Map());
   const [focusId, setFocusId] = useState<string | null>(null);
 
-  // Ensure there is always one trailing line to type into.
   const rows = lines.length > 0 ? lines : [newLine()];
 
   useEffect(() => {
-    if (focusId) {
-      const el = inputs.current.get(focusId);
-      el?.focus();
-      const v = el?.value ?? "";
-      el?.setSelectionRange(v.length, v.length);
-      setFocusId(null);
-    }
+    if (!focusId) return;
+    const el = inputs.current.get(focusId);
+    el?.focus();
+    const v = el?.value ?? "";
+    el?.setSelectionRange(v.length, v.length);
+    setFocusId(null);
   }, [focusId]);
 
   const commit = useCallback(
-    (next: Line[]) => {
-      onChange(next.length > 0 ? next : [newLine()]);
-    },
+    (next: Line[]) => onChange(next.length > 0 ? next : [newLine()]),
     [onChange],
   );
 
@@ -50,14 +45,7 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
     if (idx < 0) return;
     const current = rows[idx];
     const parsed = parseLine(raw);
-    // Only switch kind when a signifier prefix was actually typed;
-    // a plain note stays whatever it was (e.g. a task you're still writing).
-    const kind =
-      parsed.text !== raw
-        ? parsed.kind
-        : current.kind === "note"
-          ? "note"
-          : current.kind;
+    const kind = parsed.text !== raw ? parsed.kind : current.kind;
     const next = [...rows];
     next[idx] = { ...current, kind, text: parsed.text };
     commit(next);
@@ -69,7 +57,6 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
 
     if (e.key === "Enter") {
       e.preventDefault();
-      // tasks tend to come in runs; everything else drops back to a plain line
       const prevKind = rows[idx].kind;
       const created = newLine(
         prevKind === "task" || prevKind === "done" ? "task" : "note",
@@ -82,8 +69,7 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
 
     if (e.key === "Backspace" && rows[idx].text === "" && rows.length > 1) {
       e.preventDefault();
-      const next = rows.filter((l) => l.id !== id);
-      commit(next);
+      commit(rows.filter((l) => l.id !== id));
       const prev = rows[idx - 1];
       if (prev) setFocusId(prev.id);
     }
@@ -98,12 +84,10 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
     }
   };
 
-  const tapGlyph = (id: string) => {
-    const next = rows.map((l) =>
-      l.id === id ? { ...l, kind: cycleKind(l.kind) } : l,
+  const tapGlyph = (id: string) =>
+    commit(
+      rows.map((l) => (l.id === id ? { ...l, kind: cycleKind(l.kind) } : l)),
     );
-    commit(next);
-  };
 
   const pageEmpty = rows.length === 1 && rows[0].text === "";
 
@@ -115,7 +99,7 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
             type="button"
             className="ruled__glyph"
             tabIndex={-1}
-            aria-label={`Mark line as ${line.kind === "task" ? "done" : "task"}`}
+            aria-label={`Change line kind (now ${line.kind})`}
             onClick={() => tapGlyph(line.id)}
           >
             {GLYPH[line.kind]}

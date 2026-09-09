@@ -1,18 +1,30 @@
 .daily {
+  position: relative;
+  container-type: inline-size;
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: clamp(1.6rem, 5vw, 2.6rem) clamp(1.3rem, 5vw, 2.4rem)
-    clamp(1.6rem, 5vw, 2.4rem);
+  padding: 7% 6% 6% 19%;
+  overflow: hidden;
+}
+
+/* the red margin rule down every page */
+.daily__margin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 15.5%;
+  width: 1.4px;
+  background: color-mix(in srgb, var(--rule) 55%, transparent);
 }
 
 .daily__head {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  padding-bottom: 0.7rem;
-  padding-right: 1.6rem;
-  border-bottom: 2px solid color-mix(in srgb, var(--rule) 55%, transparent);
+  padding-bottom: 0.55rem;
+  padding-right: 8%;
+  border-bottom: 1.6px solid color-mix(in srgb, var(--rule) 50%, transparent);
 }
 
 .daily__meta {
@@ -25,20 +37,19 @@
 .daily__weekday {
   font-family: var(--mono);
   font-size: 0.66rem;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.34em;
   text-transform: uppercase;
   color: var(--oxblood);
 }
 
 .daily__folio {
   font-family: var(--mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
   white-space: nowrap;
 }
-
 .daily--today .daily__folio {
   color: var(--oxblood);
 }
@@ -47,18 +58,21 @@
   font-family: var(--display);
   font-optical-sizing: auto;
   font-weight: 500;
-  font-variation-settings: "SOFT" 30;
-  font-size: clamp(1.35rem, 6vw, 1.9rem);
-  line-height: 1.04;
-  margin: 0;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.15rem, 11cqw, 1.7rem);
+  line-height: 1.06;
+  margin: 0.1rem 0 0;
+  letter-spacing: -0.015em;
   text-wrap: balance;
 }
 
 .daily__body {
   flex: 1;
-  margin-top: 1.1rem;
+  margin-top: 0.9rem;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.daily__body::-webkit-scrollbar {
+  display: none;
 }

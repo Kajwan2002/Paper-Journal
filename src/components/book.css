@@ -1,140 +1,273 @@
 .book {
-  position: relative;
-  width: min(30rem, 88vw);
-  aspect-ratio: 40 / 52;
-  max-height: 84vh;
-  perspective: 1700px;
-  --spine: 14px;
-}
-
-/* binding down the left edge */
-.book__spine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: var(--spine);
-  border-radius: 3px 0 0 3px;
-  background: linear-gradient(
-    90deg,
-    var(--leather-lo),
-    var(--leather) 55%,
-    rgba(0, 0, 0, 0.25) 100%
-  );
-  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.3);
-  z-index: 1;
-}
-
-/* faux stack of page edges */
-.book__edges {
-  position: absolute;
-  inset: 0 0 0 var(--spine);
-  border-radius: var(--radius-page);
-  background: var(--paper-edge);
-  box-shadow:
-    2px 3px 0 -1px color-mix(in srgb, var(--paper-edge) 80%, #000 6%),
-    4px 6px 0 -2px color-mix(in srgb, var(--paper-edge) 70%, #000 10%),
-    6px 9px 0 -3px color-mix(in srgb, var(--paper-edge) 60%, #000 14%),
-    14px 22px 40px -18px rgba(0, 0, 0, 0.5);
-  z-index: 1;
-}
-
-.book__well {
-  position: absolute;
-  inset: 0 0 0 var(--spine);
-  /* own perspective + flat context so the turning leaf composites ABOVE the
-     base by z-index and never gets occluded when it swings past vertical */
-  perspective: 1500px;
-  perspective-origin: 0% 45%;
+  --edge: clamp(6px, 1.5vmin, 11px);
+  perspective: 2000px;
   touch-action: pan-y;
-  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.book__leaf {
+/* the bound board behind the whole spread */
+.book__board {
   position: absolute;
-  inset: 0;
-  background: var(--paper);
-  border-radius: var(--radius-page);
-}
-
-.book__leaf--base {
-  z-index: 1;
-  overflow: hidden;
-  box-shadow: inset 22px 0 34px -30px rgba(0, 0, 0, 0.4);
-}
-
-/* shadow the lifted page casts on the sheet beneath it */
-.book__cast {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  border-radius: var(--radius-page);
+  inset: calc(var(--edge) * -1) calc(var(--edge) * -1.4);
+  border-radius: 5px;
+  z-index: 0;
+  transition:
+    left 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+    right 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
   background: linear-gradient(
     100deg,
-    rgba(0, 0, 0, 0.42) 0%,
-    rgba(0, 0, 0, 0.2) 20%,
-    rgba(0, 0, 0, 0.05) 42%,
-    rgba(0, 0, 0, 0) 60%
+    var(--leather-lo),
+    var(--leather) 20%,
+    var(--leather-hi) 50%,
+    var(--leather) 80%,
+    var(--leather-lo) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    34px 40px 90px -30px rgba(0, 0, 0, 0.6),
+    0 12px 34px -14px rgba(0, 0, 0, 0.5);
+}
+
+.book__stack {
+  position: absolute;
+  top: 2.5%;
+  bottom: 2.5%;
+  width: 9px;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    0deg,
+    var(--paper-edge) 0 3px,
+    color-mix(in srgb, var(--paper-edge) 80%, #000 10%) 3px 4px
   );
 }
-
-.book__leaf--turning {
-  z-index: 3;
-  transform-origin: left center;
-  transform-style: preserve-3d;
-  will-change: transform;
-  /* transform is driven imperatively (src/components/Book.tsx + lib/spring.ts) */
+.book__stack--l {
+  left: calc(var(--edge) * -0.7);
+  border-radius: 3px 0 0 3px;
+  box-shadow: -3px 4px 8px -3px rgba(0, 0, 0, 0.4);
+}
+.book__stack--r {
+  right: calc(var(--edge) * -0.7);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 3px 4px 8px -3px rgba(0, 0, 0, 0.4);
 }
 
-.book__face {
+.book__half {
   position: absolute;
-  inset: 0;
-  border-radius: var(--radius-page);
+  top: 0;
+  height: 100%;
+  width: 50%;
+  z-index: 2;
   overflow: hidden;
-  backface-visibility: hidden;
   background: var(--paper);
+  opacity: 0;
+}
+.book--open .book__half {
+  opacity: 1;
+  transition: opacity 0.3s ease 0.22s;
+}
+.book__half--left {
+  left: 0;
+  border-radius: 3px 0 0 3px;
+  box-shadow: inset -26px 0 34px -30px rgba(0, 0, 0, 0.5);
+}
+.book__half--left .daily {
+  opacity: 0.5;
+  filter: saturate(0.72);
+}
+.book__half--right {
+  left: 50%;
+  border-radius: 0 3px 3px 0;
+  box-shadow: inset 26px 0 34px -30px rgba(0, 0, 0, 0.5);
+}
+.book--turning .book__half {
+  pointer-events: none;
 }
 
-.book__face--front {
-  box-shadow: inset 22px 0 34px -30px rgba(0, 0, 0, 0.4);
-  /* nudge toward the viewer so it wins the z-fight with the back face at 90° */
-  transform: translateZ(0.4px);
-}
-
-.book__face--back {
-  transform: rotateY(180deg) translateZ(0.4px);
+/* the binding shadow where the two pages dip into the spine */
+.book__gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 6%);
+  width: 12%;
+  z-index: 3;
+  pointer-events: none;
   background: linear-gradient(
-    270deg,
-    var(--paper) 78%,
-    color-mix(in srgb, var(--paper) 78%, #000 10%) 100%
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.16) 42%,
+    rgba(0, 0, 0, 0.22) 50%,
+    rgba(0, 0, 0, 0.16) 58%,
+    rgba(0, 0, 0, 0) 100%
   );
 }
 
-/* a curved-paper sheen that reads as the sheet flexing as it turns */
-.book__curl {
+/* leather cover — the front of the book, hinged at the spine.
+   closed: translated left so it sits centred on the desk.
+   open:   flipped ~180deg about the spine, dropped behind the pages. */
+.book__cover {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  z-index: 6;
+  transform-style: preserve-3d;
+  transform-origin: left center;
+  transform: translateX(-50%) rotateY(0deg);
+  transition: transform 0.62s cubic-bezier(0.34, 0.03, 0.24, 1);
+  container-type: inline-size;
+}
+.book--open .book__cover {
+  transform: translateX(0%) rotateY(-172deg);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.book__cover-face {
   position: absolute;
   inset: 0;
+  backface-visibility: hidden;
+  border-radius: 2px 7px 7px 2px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.book__cover-face--front {
+  background: radial-gradient(
+    130% 96% at 72% 20%,
+    var(--leather-hi),
+    var(--leather) 45%,
+    var(--leather-lo) 100%
+  );
+  box-shadow:
+    22px 24px 52px -14px rgba(0, 0, 0, 0.55),
+    inset 0 0 70px -22px rgba(0, 0, 0, 0.5);
+}
+.book__cover-face--back {
+  transform: rotateY(180deg);
+  background: linear-gradient(
+    100deg,
+    var(--leather-lo),
+    var(--leather) 60%,
+    var(--leather-lo)
+  );
+  box-shadow: inset 0 0 80px -20px rgba(0, 0, 0, 0.7);
+}
+.book__cover--oxblood {
+  --leather: #5a2a2f;
+  --leather-hi: #7c3c40;
+  --leather-lo: #38181c;
+}
+.book__cover--tan {
+  --leather: #8a6a45;
+  --leather-hi: #a9895f;
+  --leather-lo: #553d29;
+}
+.book__cover--forest {
+  --leather: #2f4436;
+  --leather-hi: #42604b;
+  --leather-lo: #1a2a20;
+}
+.book__cover--black-cloth {
+  --leather: #2a2a2c;
+  --leather-hi: #3c3c3f;
+  --leather-lo: #141416;
+}
+
+.book__cover-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image:
+    repeating-linear-gradient(
+      93deg,
+      rgba(255, 255, 255, 0.05) 0 1px,
+      transparent 1px 3px
+    ),
+    repeating-linear-gradient(
+      3deg,
+      rgba(0, 0, 0, 0.06) 0 1px,
+      transparent 1px 4px
+    );
+}
+.book__cover-frame {
+  position: absolute;
+  inset: 9%;
+  border: 1px solid color-mix(in srgb, var(--emboss) 38%, transparent);
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.16);
+}
+.book__cover-title {
+  position: relative;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(1.4rem, 15cqw, 2.4rem);
+  letter-spacing: 0.01em;
+  text-align: center;
+  padding: 0 1.1rem;
+  color: var(--emboss);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.5),
+    0 -1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* closed: only the centred cover shows */
+.book:not(.book--open) .book__stack {
+  opacity: 0;
+}
+.book:not(.book--open) .book__gutter {
+  opacity: 0;
+}
+.book:not(.book--open) .book__board {
+  left: calc(25% - var(--edge));
+  right: calc(25% - var(--edge));
+}
+
+/* the deforming leaf */
+.book__gl {
+  position: absolute;
+  z-index: 8;
   pointer-events: none;
   opacity: 0;
-  border-radius: var(--radius-page);
-  background: linear-gradient(
-    105deg,
-    rgba(0, 0, 0, 0.42) 0%,
-    rgba(0, 0, 0, 0.12) 10%,
-    rgba(255, 255, 255, 0.16) 34%,
-    rgba(255, 255, 255, 0.02) 50%,
-    rgba(0, 0, 0, 0.1) 74%,
-    rgba(0, 0, 0, 0.34) 100%
-  );
-  /* opacity is driven imperatively during the turn */
+}
+.book--turning .book__gl {
+  opacity: 1;
+}
+.book--settling .book__gl {
+  opacity: 0;
+  transition: opacity 0.24s ease;
+}
+.book--settling .book__half {
+  animation: bookSettle 0.24s ease;
+}
+@keyframes bookSettle {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.book__nav {
+/* ribbon bookmark — hangs from the top, tap to close */
+.book__ribbon {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
+  z-index: 7;
+  top: calc(var(--edge) * -1);
+  left: calc(50% + 42%);
+  width: clamp(9px, 2vmin, 13px);
+  height: 27%;
+  background: linear-gradient(
+    90deg,
+    var(--oxblood-bright),
+    var(--oxblood) 58%,
+    color-mix(in srgb, var(--oxblood) 68%, #000) 100%
+  );
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
+  filter: drop-shadow(2px 4px 3px rgba(0, 0, 0, 0.35));
 }
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -153,48 +286,15 @@
   margin: 0.4rem;
   padding: 0.3rem 0.6rem;
   clip: auto;
-  pointer-events: auto;
   background: var(--paper-shade);
   color: var(--ink);
   border-radius: 3px;
   z-index: 50;
 }
 
-.book__coverdrag {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
-  cursor: pointer;
-  touch-action: pan-y;
-  border-radius: var(--radius-page);
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* ribbon bookmark — tap to close */
-.book__close {
-  position: absolute;
-  top: -14px;
-  right: 1.1rem;
-  width: 13px;
-  height: 26%;
-  z-index: 20;
-  filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.35));
-}
-.book__ribbon {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    var(--oxblood-bright),
-    var(--oxblood) 60%,
-    color-mix(in srgb, var(--oxblood) 70%, #000) 100%
-  );
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .book__leaf--turning {
-    will-change: auto;
+  .book,
+  .book__cover {
+    transition: none;
   }
 }

@@ -1,0 +1,31 @@
+.deskctl {
+  position: fixed;
+  right: max(0.7rem, env(safe-area-inset-right));
+  bottom: max(0.7rem, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 0.35rem;
+  z-index: 60;
+}
+
+.deskctl__btn {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: color-mix(in srgb, var(--emboss) 80%, transparent);
+  background: color-mix(in srgb, var(--desk-deep) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--emboss) 20%, transparent);
+  border-radius: 999px;
+  backdrop-filter: blur(3px);
+  transition:
+    color 0.15s ease,
+    transform 0.12s ease;
+}
+.deskctl__btn:hover {
+  color: var(--emboss);
+}
+.deskctl__btn:active {
+  transform: scale(0.9);
+}

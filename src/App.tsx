@@ -10,6 +10,8 @@ export function App() {
   const [shelf, setShelf] = useState<Notebook[] | null>(null);
   const notebookId = useSession((s) => s.notebookId);
   const setNotebook = useSession((s) => s.setNotebook);
+  const date = useSession((s) => s.date);
+  const goToday = useSession((s) => s.goToday);
 
   useEffect(() => {
     let alive = true;
@@ -17,22 +19,31 @@ export function App() {
       if (!alive) return;
       setShelf(notebooks);
       const stillValid = notebooks.some((n) => n.id === notebookId);
-      if (!stillValid) setNotebook(notebooks[0].id);
-      void prime(notebooks[0].id, todayKey());
+      const id = stillValid ? notebookId! : notebooks[0].id;
+      if (!stillValid) setNotebook(id);
+      void prime(id, todayKey());
+      void prime(id, date);
     });
     return () => {
       alive = false;
     };
-    // notebookId intentionally read once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const current =
-    shelf?.find((n) => n.id === notebookId) ?? shelf?.[0] ?? null;
+  // if the app was left open overnight, land on the new "today"
+  useEffect(() => {
+    const onShow = () => {
+      if (!document.hidden && useSession.getState().date < todayKey()) {
+        goToday();
+      }
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => document.removeEventListener("visibilitychange", onShow);
+  }, [goToday]);
+
+  const current = shelf?.find((n) => n.id === notebookId) ?? shelf?.[0] ?? null;
 
   return (
-    <Desk>
-      {current ? <Book key={current.id} notebook={current} /> : null}
-    </Desk>
+    <Desk>{current ? <Book key={current.id} notebook={current} /> : null}</Desk>
   );
 }

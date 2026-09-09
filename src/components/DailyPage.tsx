@@ -9,19 +9,19 @@ import {
 import { pageId } from "@/lib/db";
 import { getCached, prime, subscribe, writeLines } from "@/lib/pageStore";
 import type { Line } from "@/lib/rapidlog";
+import { GLYPH } from "@/lib/rapidlog";
 import { RuledLines } from "@/components/RuledLines";
 import "./daily-page.css";
 
 interface Props {
   notebookId: string;
   date: DayKey;
-  /** the layer sitting behind a page-turn is shown read-only */
+  /** a page sitting behind a turn is shown read-only */
   interactive?: boolean;
 }
 
 export function DailyPage({ notebookId, date, interactive = true }: Props) {
   const key = pageId(notebookId, date);
-
   const lines = useSyncExternalStore(
     (cb) => subscribe(key, cb),
     () => getCached(key),
@@ -36,6 +36,7 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
 
   return (
     <article className={`daily ${today ? "daily--today" : ""}`}>
+      <div className="daily__margin" aria-hidden="true" />
       <header className="daily__head">
         <div className="daily__meta">
           <span className="daily__weekday">{weekday(date)}</span>
@@ -64,13 +65,19 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
 }
 
 function StaticLines({ lines }: { lines: Line[] }) {
-  const rows: Line[] =
-    lines.length > 0 ? lines : [{ id: "x", kind: "note", text: "" }];
+  const written = lines.filter((l) => l.text.trim().length > 0);
+  if (written.length === 0) {
+    return (
+      <div className="ruled" aria-hidden="true">
+        <p className="ruled__placeholder">What matters today?</p>
+      </div>
+    );
+  }
   return (
     <div className="ruled" aria-hidden="true">
-      {rows.map((l) => (
+      {written.map((l) => (
         <div key={l.id} className={`ruled__row ruled__row--${l.kind}`}>
-          <span className="ruled__glyph" />
+          <span className="ruled__glyph">{GLYPH[l.kind]}</span>
           <span className="ruled__static">{l.text}</span>
         </div>
       ))}

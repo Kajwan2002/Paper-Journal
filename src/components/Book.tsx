@@ -1,25 +1,72 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useDrag } from "@use-gesture/react";
-import { useSession } from "@/state/session";
-import { addDays } from "@/lib/date";
-import { prime } from "@/lib/pageStore";
-import { clamp01, runSpring } from "@/lib/spring";
 import type { Notebook } from "@/lib/db";
+import { addDays, type DayKey } from "@/lib/date";
+import { useSession } from "@/state/session";
+import { getCached, prime } from "@/lib/pageStore";
+import { clamp01, runSpring } from "@/lib/spring";
+import { PageTurnGL } from "@/gl/engine";
+import { paintPage } from "@/render/paintPage";
+import { paintCover } from "@/render/paintCover";
+import { hexToRgb, readPalette } from "@/lib/theme";
+import { prefersReducedMotion } from "@/lib/prefs";
 import { DailyPage } from "@/components/DailyPage";
-import { Cover } from "@/components/Cover";
 import "./book.css";
 
-type Dir = "next" | "prev";
+const ASPECT = 0.7; // one page: width / height
+const CANVAS_PAD_X = 1.09; // canvas width  = spread * this
+const CANVAS_PAD_Y = 1.34; // canvas height = pageH * this
+const FLING = 1.2; // t/sec that forces a commit or a cancel
 
-const MAX_ANGLE = 168; // degrees the turning leaf sweeps through
-const GRAB = 0.82; // fraction of page width that equals a full turn
-
-function reducedMotion(): boolean {
-  return (
-    typeof matchMedia === "function" &&
-    matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+type Kind = "page" | "cover";
+interface Turn {
+  kind: Kind;
+  dir: 1 | -1; // 1 = forward (right leaf folds left) · -1 = back (left leaf lifts right)
+  leftDate: DayKey; // what the left half shows during the turn
+  rightDate: DayKey; // what the right half shows during the turn
 }
+interface Geom {
+  pageW: number;
+  pageH: number;
+  spreadW: number;
+  spineX: number; // from the stage's left edge
+  topY: number;
+  canvasW: number;
+  canvasH: number;
+  dpr: number;
+}
+
+function measure(el: HTMLElement | null): Geom {
+  const m = 18;
+  const stageW = el?.clientWidth ?? window.innerWidth;
+  const stageH = el?.clientHeight ?? window.innerHeight;
+  const availW = stageW - m * 2;
+  const availH = stageH - m * 2;
+  const pageH = Math.max(
+    220,
+    Math.min(availH * 0.82, ((availW / 2) * 0.98) / ASPECT),
+  );
+  const pageW = pageH * ASPECT;
+  const spreadW = pageW * 2;
+  return {
+    pageW,
+    pageH,
+    spreadW,
+    spineX: stageW / 2,
+    topY: (stageH - pageH) / 2,
+    canvasW: spreadW * CANVAS_PAD_X,
+    canvasH: pageH * CANVAS_PAD_Y,
+    dpr: Math.min(window.devicePixelRatio || 1, 2),
+  };
+}
+
+const engineCache = new WeakMap<HTMLCanvasElement, PageTurnGL>();
 
 export function Book({ notebook }: { notebook: Notebook }) {
   const open = useSession((s) => s.open);
@@ -28,293 +75,472 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const closeBook = useSession((s) => s.closeBook);
   const step = useSession((s) => s.step);
 
-  const frameRef = useRef<HTMLDivElement>(null);
-  const leafRef = useRef<HTMLDivElement | null>(null);
-  const curlRef = useRef<HTMLDivElement | null>(null);
-  const castRef = useRef<HTMLDivElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const glRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<PageTurnGL | null>(null);
+  const leafC = useRef<HTMLCanvasElement>(document.createElement("canvas"));
 
-  const [turn, setTurn] = useState<Dir | null>(null);
-  const turnRef = useRef<Dir | null>(null);
-  const progressRef = useRef(0);
+  const [geom, setGeom] = useState<Geom>(() => measure(null));
+  const geomRef = useRef(geom);
+  geomRef.current = geom;
+
+  const [turn, setTurn] = useState<Turn | null>(null);
+  const [settling, setSettling] = useState(false);
+  const turnRef = useRef<Turn | null>(null);
+  const tRef = useRef(0);
   const busyRef = useRef(false);
-  const gestureRef = useRef(false);
-  const cancelSpringRef = useRef<(() => void) | null>(null);
-  const safetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelSpring = useRef<(() => void) | null>(null);
+  const safety = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Write the leaf transform straight to the DOM — no React render per frame.
-  const paint = useCallback((p: number) => {
-    progressRef.current = p;
-    const dir = turnRef.current;
-    const leaf = leafRef.current;
-    if (!dir || !leaf) return;
-    const t = clamp01(p);
-    const angle = dir === "prev" ? -MAX_ANGLE * (1 - p) : -MAX_ANGLE * p;
-    const arc = Math.sin(t * Math.PI); // 0 → 1 → 0 across the turn
-    // the page lifts off the spine and arcs over, rather than pivoting flat
-    const lift = 6 + arc * 34;
-    // a gentle bow — the leading edge leans as the sheet flexes
-    const bow = dir === "prev" ? -arc * 5 : arc * 5;
-    leaf.style.transform = `translateZ(${lift}px) rotateY(${angle}deg) rotateX(${bow}deg)`;
-    if (curlRef.current) curlRef.current.style.opacity = String(arc * 0.8);
-    if (castRef.current) castRef.current.style.opacity = String(arc * 0.45);
+  // --- sizing ---------------------------------------------------------
+  useEffect(() => {
+    const stage = wrapRef.current?.parentElement ?? null;
+    const apply = () => {
+      const g = measure(stage);
+      setGeom(g);
+      engineRef.current?.resize(g.canvasW, g.canvasH, g.pageW, g.pageH, g.dpr);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    if (stage) ro.observe(stage);
+    window.addEventListener("resize", apply);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", apply);
+    };
   }, []);
 
-  const cleanup = useCallback(
-    (commit: boolean) => {
-      if (safetyRef.current) clearTimeout(safetyRef.current);
-      safetyRef.current = null;
-      const dir = turnRef.current;
+  // --- engine (one context per <canvas>, kept across StrictMode) -------
+  useEffect(() => {
+    const canvas = glRef.current;
+    if (!canvas) return;
+    let engine = engineCache.get(canvas) ?? null;
+    if (!engine) {
+      try {
+        engine = new PageTurnGL(canvas);
+        engineCache.set(canvas, engine);
+      } catch (err) {
+        console.warn("page-turn: WebGL unavailable — instant turns", err);
+        return;
+      }
+    }
+    engineRef.current = engine;
+    const g = geomRef.current;
+    engine.resize(g.canvasW, g.canvasH, g.pageW, g.pageH, g.dpr);
+
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      engineCache.delete(canvas);
+      engineRef.current = null;
+    };
+    const onRestored = () => {
+      try {
+        const fresh = new PageTurnGL(canvas);
+        engineCache.set(canvas, fresh);
+        const g2 = geomRef.current;
+        fresh.resize(g2.canvasW, g2.canvasH, g2.pageW, g2.pageH, g2.dpr);
+        engineRef.current = fresh;
+      } catch {
+        /* stay in fallback */
+      }
+    };
+    canvas.addEventListener("webglcontextlost", onLost);
+    canvas.addEventListener("webglcontextrestored", onRestored);
+    return () => {
+      canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
+    };
+  }, []);
+
+  const linesFor = useCallback(
+    (d: DayKey) => getCached(`${notebook.id}__${d}`) ?? [],
+    [notebook.id],
+  );
+
+  const dressLeaf = useCallback(
+    (kind: Kind, frontDate: DayKey) => {
+      const g = geomRef.current;
+      const c = leafC.current;
+      const pal = readPalette();
+      const [pr, pg, pb] = hexToRgb(pal.paper);
+      engineRef.current?.setPaper(pr / 255, pg / 255, pb / 255);
+      if (kind === "cover") {
+        paintCover(
+          c,
+          g.pageW,
+          g.pageH,
+          g.dpr,
+          notebook.title,
+          notebook.cover,
+        );
+      } else {
+        paintPage({
+          canvas: c,
+          pageW: g.pageW,
+          pageH: g.pageH,
+          dpr: g.dpr,
+          date: frontDate,
+          lines: linesFor(frontDate),
+          paper: notebook.paper,
+          palette: pal,
+        });
+      }
+      engineRef.current?.setLeaf(c);
+    },
+    [notebook.title, notebook.cover, notebook.paper, linesFor],
+  );
+
+  const paint = useCallback((t: number) => {
+    tRef.current = t;
+    const tn = turnRef.current;
+    if (tn) engineRef.current?.render(t, tn.dir);
+  }, []);
+
+  const finalize = useCallback(
+    (committed: boolean) => {
+      if (safety.current) clearTimeout(safety.current);
+      safety.current = null;
+      cancelSpring.current = null;
+      const t = turnRef.current;
       turnRef.current = null;
-      gestureRef.current = false;
-      cancelSpringRef.current = null;
       busyRef.current = false;
       setTurn(null);
-      if (commit && dir) step(dir === "next" ? 1 : -1);
+      setSettling(true);
+      const eng = engineRef.current;
+      setTimeout(() => {
+        setSettling(false);
+        if (!turnRef.current) eng?.clear();
+      }, 240);
+      if (!committed || !t) return;
+      if (t.kind === "cover") {
+        if (t.dir === 1) openBook();
+        else closeBook();
+      } else {
+        step(t.dir === 1 ? 1 : -1);
+      }
     },
-    [step],
+    [openBook, closeBook, step],
   );
 
   const settle = useCallback(
-    (commit: boolean, velocity: number) => {
-      cancelSpringRef.current?.();
-      if (safetyRef.current) clearTimeout(safetyRef.current);
-      if (reducedMotion()) {
-        paint(commit ? 1 : 0);
-        cleanup(commit);
+    (target: 0 | 1, velocity: number) => {
+      cancelSpring.current?.();
+      if (safety.current) clearTimeout(safety.current);
+      const committed = target === 1;
+      if (prefersReducedMotion() || !engineRef.current || !turnRef.current) {
+        paint(target);
+        finalize(committed);
         return;
       }
-      // if rAF stalls (tab backgrounded mid-turn) finish anyway
-      safetyRef.current = setTimeout(() => {
-        cancelSpringRef.current?.();
-        paint(commit ? 1 : 0);
-        cleanup(commit);
-      }, 1400);
-      cancelSpringRef.current = runSpring(
-        progressRef.current,
-        commit ? 1 : 0,
+      safety.current = setTimeout(() => {
+        cancelSpring.current?.();
+        paint(target);
+        finalize(committed);
+      }, 1600);
+      cancelSpring.current = runSpring(
+        tRef.current,
+        target,
         velocity,
         paint,
-        () => cleanup(commit),
-        { stiffness: 186, damping: 20 },
+        () => finalize(committed),
+        { stiffness: 188, damping: 22 },
       );
     },
-    [paint, cleanup],
+    [paint, finalize],
   );
 
-  const beginTurn = useCallback(
-    (dir: Dir) => {
+  const begin = useCallback(
+    (kind: Kind, dir: 1 | -1): boolean => {
       if (busyRef.current) return false;
+      const engine = engineRef.current;
+
+      if (prefersReducedMotion() || !engine) {
+        if (kind === "cover") {
+          if (dir === 1) openBook();
+          else closeBook();
+        } else {
+          step(dir === 1 ? 1 : -1);
+        }
+        return false;
+      }
+
+      const from = date;
+      const frontDate =
+        kind === "cover" ? from : dir === 1 ? from : addDays(from, -1);
+      // what the two halves show behind the leaf during the turn
+      const leftDate =
+        kind === "cover"
+          ? addDays(from, -1)
+          : dir === 1
+            ? addDays(from, -1)
+            : addDays(from, -2);
+      const rightDate =
+        kind === "cover" ? from : dir === 1 ? addDays(from, 1) : from;
+
+      if (kind === "page") {
+        void prime(notebook.id, dir === 1 ? rightDate : leftDate);
+      }
+
       busyRef.current = true;
-      turnRef.current = dir;
-      progressRef.current = 0;
-      void prime(notebook.id, addDays(date, dir === "next" ? 1 : -1));
-      setTurn(dir);
+      const t: Turn = { kind, dir, leftDate, rightDate };
+      turnRef.current = t;
+      tRef.current = 0;
+      dressLeaf(kind, frontDate);
+      paint(0);
+      setTurn(t);
       return true;
     },
-    [notebook.id, date],
+    [date, notebook.id, dressLeaf, paint, openBook, closeBook, step],
   );
 
-  // tap / keyboard: a full spring-driven turn
   const flip = useCallback(
-    (dir: Dir) => {
-      if (!open || !beginTurn(dir)) return;
-      requestAnimationFrame(() => settle(true, 2.4));
+    (kind: Kind, dir: 1 | -1) => {
+      if (kind === "cover") {
+        // the cover is pure CSS — flipping the .book--open class animates it
+        if (dir === 1) openBook();
+        else closeBook();
+        return;
+      }
+      if (!begin(kind, dir)) return;
+      settle(1, 3.2);
     },
-    [open, beginTurn, settle],
+    [begin, settle, openBook, closeBook],
   );
 
-  useLayoutEffect(() => {
-    if (turn) paint(progressRef.current);
-  }, [turn, paint]);
-
-  useEffect(
-    () => () => {
-      cancelSpringRef.current?.();
-      if (safetyRef.current) clearTimeout(safetyRef.current);
-    },
-    [],
+  // --- gesture -------------------------------------------------------
+  const grabRef = useRef<null | { kind: Kind; dir: 1 | -1; span: number }>(
+    null,
   );
 
-  const bindWell = useDrag(
+  const bind = useDrag(
     (state) => {
-      if (!open) return;
       const {
         first,
         last,
         tap,
+        xy: [px],
+        initial: [ix],
         movement: [mx],
         velocity: [vx],
-        direction: [dx],
+        direction: [dxs],
         event,
       } = state;
-      const targetEl = event.target as HTMLElement | null;
+      const rect = wrapRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spineFrac = geomRef.current.pageW / rect.width; // spine within .book
 
       if (tap) {
-        if (targetEl?.closest(".ruled__input, button")) return;
-        const rect = frameRef.current?.getBoundingClientRect();
-        const cx = (event as PointerEvent).clientX;
-        if (!rect || cx == null) return;
-        const x = cx - rect.left;
-        if (x < rect.width * 0.3) flip("prev");
-        else if (x > rect.width * 0.7) flip("next");
+        const el = event.target as HTMLElement | null;
+        if (el?.closest(".ruled__input, button, a")) return;
+        if (!open) return flip("cover", 1);
+        const x = (px - rect.left) / rect.width;
+        if (x > spineFrac + (1 - spineFrac) * 0.5) flip("page", 1);
+        else if (x < spineFrac * 0.6) flip("page", -1);
         return;
       }
 
-      if (first) gestureRef.current = false;
-
-      if (!gestureRef.current) {
-        if (Math.abs(mx) < 6 || busyRef.current) return;
-        if (!beginTurn(mx < 0 ? "next" : "prev")) return;
-        gestureRef.current = true;
+      if (first) {
+        grabRef.current = null;
+        if (busyRef.current) return;
+        const sx = (ix - rect.left) / rect.width;
+        const span = geomRef.current.pageW * 0.82;
+        if (!open) grabRef.current = { kind: "cover", dir: 1, span };
+        else if (sx > spineFrac) grabRef.current = { kind: "page", dir: 1, span };
+        else grabRef.current = { kind: "page", dir: -1, span };
+        return;
       }
 
-      const dir = turnRef.current;
-      if (!dir) return;
-      const w = (frameRef.current?.clientWidth ?? 380) * GRAB;
-      const travelled = dir === "next" ? -mx : mx;
-      const p = clamp01(travelled / w);
+      const grab = grabRef.current;
+      if (!grab) return;
+
+      // the cover doesn't track the finger — just open on a decisive pull
+      if (grab.kind === "cover") {
+        if (!last) return;
+        const vSigned = (dxs || 0) * vx * 1000;
+        if (-mx > grab.span * 0.4 || -vSigned / grab.span > FLING) openBook();
+        grabRef.current = null;
+        return;
+      }
+
+      if (!turnRef.current) {
+        const want = grab.dir === 1 ? -8 : 8; // fwd pulls left, back pulls right
+        if (grab.dir === 1 ? mx > want : mx < want) {
+          if (Math.abs(mx) > 8) grabRef.current = null;
+          return;
+        }
+        if (!begin(grab.kind, grab.dir)) {
+          grabRef.current = null;
+          return;
+        }
+      }
+
+      const t = turnRef.current;
+      if (!t) return;
+      const toward = t.dir === 1 ? -mx : mx; // px in the turning direction
+      const prog = clamp01(toward / grab.span);
 
       if (!last) {
-        paint(p);
+        paint(prog);
         return;
       }
 
-      gestureRef.current = false;
-      const turnVel = ((dir === "next" ? -1 : 1) * dx * vx * 1000) / w;
-      const commit = turnVel > 0.9 ? true : turnVel < -0.9 ? false : p > 0.5;
-      settle(commit, turnVel);
+      const vSigned = (dxs || 0) * vx * 1000; // px/sec
+      const vTurn = (t.dir === 1 ? -vSigned : vSigned) / grab.span; // t/sec
+      let commit = prog > 0.5;
+      if (vTurn > FLING) commit = true;
+      else if (vTurn < -FLING) commit = false;
+      settle(commit ? 1 : 0, vTurn);
+      grabRef.current = null;
     },
-    { axis: "x", filterTaps: true },
+    { filterTaps: true, pointer: { touch: true }, axis: "x" },
   );
 
-  const bindCover = useDrag(
-    ({ last, tap, movement: [mx], velocity: [vx] }) => {
-      if (open || !last) return;
-      if (tap || mx < -40 || (vx > 0.3 && mx < 0)) openBook();
-    },
-    { axis: "x", filterTaps: true },
-  );
-
+  // --- keyboard ----------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!open) return;
       const el = document.activeElement;
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
         return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") flip("next");
-      else if (e.key === "ArrowLeft" || e.key === "PageUp") flip("prev");
-      else if (e.key === "Escape") closeBook();
+      if (!open) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          flip("cover", 1);
+        }
+        return;
+      }
+      if (e.key === "ArrowRight" || e.key === "PageDown") flip("page", 1);
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") flip("page", -1);
+      else if (e.key === "Escape") flip("cover", -1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, flip, closeBook]);
+  }, [open, flip]);
 
-  // `next` peels the current page away to reveal date+1; `prev` sweeps
-  // date-1 in from the spine to cover the current page.
-  const baseDate = turn === "next" ? addDays(date, 1) : date;
-  const leafDate = turn === "prev" ? addDays(date, -1) : date;
+  useEffect(
+    () => () => {
+      cancelSpring.current?.();
+      if (safety.current) clearTimeout(safety.current);
+    },
+    [],
+  );
+
+  // dev-only leaf driver for visual tuning
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__leaf = (t: number, dir: 1 | -1 = 1, kind: Kind = "page") => {
+      const frontDate = dir === 1 ? date : addDays(date, -1);
+      const tn: Turn = {
+        kind,
+        dir,
+        leftDate: addDays(date, dir === 1 ? -1 : -2),
+        rightDate: dir === 1 ? addDays(date, 1) : date,
+      };
+      turnRef.current = tn;
+      setTurn(tn);
+      dressLeaf(kind, kind === "cover" ? date : frontDate);
+      requestAnimationFrame(() => engineRef.current?.render(t, dir));
+    };
+    return () => {
+      delete w.__leaf;
+    };
+  }, [dressLeaf, date]);
+
+  const g = geom;
+  const closed = !open && !turn;
+  const spineFrac = g.pageW / g.spreadW;
+
+  const leftDate = turn ? turn.leftDate : addDays(date, -1);
+  const rightDate = turn ? turn.rightDate : date;
+  const rightLive = !turn && open;
 
   return (
-    <div className={`book ${open ? "book--open" : ""}`} ref={frameRef}>
-      <div className="book__spine" aria-hidden="true" />
-      <div className="book__edges" aria-hidden="true" />
+    <div
+      ref={wrapRef}
+      className={`book ${open ? "book--open" : ""} ${
+        turn ? "book--turning" : ""
+      } ${settling ? "book--settling" : ""} ${closed ? "book--closed" : ""}`}
+      style={
+        {
+          position: "absolute",
+          left: `${g.spineX - g.pageW}px`,
+          top: `${g.topY}px`,
+          width: `${g.spreadW}px`,
+          height: `${g.pageH}px`,
+          "--spine-frac": spineFrac,
+        } as CSSProperties
+      }
+      {...bind()}
+    >
+      <div className="book__board" aria-hidden="true" />
+      <div className="book__stack book__stack--l" aria-hidden="true" />
+      <div className="book__stack book__stack--r" aria-hidden="true" />
 
-      <div className="book__well" {...bindWell()}>
-        <div className="book__leaf book__leaf--base">
-          <DailyPage
-            notebookId={notebook.id}
-            date={baseDate}
-            interactive={!turn}
-          />
-        </div>
-
-        {turn ? (
-          <div
-            ref={(el) => {
-              castRef.current = el;
-            }}
-            className="book__cast"
-            style={{ opacity: 0 }}
-            aria-hidden="true"
-          />
-        ) : null}
-
-        {turn ? (
-          <div
-            ref={(el) => {
-              leafRef.current = el;
-            }}
-            className="book__leaf book__leaf--turning"
-            style={{
-              transform: `rotateY(${turn === "prev" ? -MAX_ANGLE : 0}deg)`,
-            }}
-          >
-            <div className="book__face book__face--front">
-              <DailyPage
-                notebookId={notebook.id}
-                date={leafDate}
-                interactive={false}
-              />
-            </div>
-            <div className="book__face book__face--back" aria-hidden="true" />
-            <div
-              ref={(el) => {
-                curlRef.current = el;
-              }}
-              className="book__curl"
-              style={{ opacity: 0 }}
-              aria-hidden="true"
-            />
-          </div>
-        ) : null}
-
-        {open ? (
-          <div className="book__nav" aria-hidden={false}>
-            <button
-              type="button"
-              className="sr-only"
-              onClick={() => flip("prev")}
-            >
-              Previous day
-            </button>
-            <button
-              type="button"
-              className="sr-only"
-              onClick={() => flip("next")}
-            >
-              Next day
-            </button>
-          </div>
-        ) : null}
+      <div className="book__half book__half--left" aria-hidden="true">
+        <DailyPage
+          notebookId={notebook.id}
+          date={leftDate}
+          interactive={false}
+        />
+      </div>
+      <div className="book__gutter" aria-hidden="true" />
+      <div className="book__half book__half--right">
+        <DailyPage
+          notebookId={notebook.id}
+          date={rightDate}
+          interactive={rightLive}
+        />
       </div>
 
-      <Cover title={notebook.title} cover={notebook.cover} open={open} />
+      <div
+        className={`book__cover book__cover--${notebook.cover}`}
+        aria-hidden={open}
+      >
+        <div className="book__cover-face book__cover-face--front">
+          <span className="book__cover-grain" />
+          <span className="book__cover-frame" />
+          <span className="book__cover-title">{notebook.title}</span>
+        </div>
+        <div className="book__cover-face book__cover-face--back">
+          <span className="book__cover-grain" />
+        </div>
+      </div>
 
-      {!open ? (
-        <div
-          className="book__coverdrag"
-          {...bindCover()}
-          role="button"
-          tabIndex={0}
-          aria-label={`Open ${notebook.title}`}
-          onClick={openBook}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              openBook();
-            }
-          }}
+      <canvas
+        ref={glRef}
+        className="book__gl"
+        aria-hidden="true"
+        style={{
+          width: `${g.canvasW}px`,
+          height: `${g.canvasH}px`,
+          left: `${(g.spreadW - g.canvasW) / 2}px`,
+          top: `${-(g.canvasH - g.pageH) / 2}px`,
+        }}
+      />
+
+      {open && !turn ? (
+        <button
+          type="button"
+          className="book__ribbon"
+          aria-label="Close notebook"
+          onClick={() => flip("cover", -1)}
         />
       ) : null}
 
+      <button
+        type="button"
+        className="sr-only"
+        onClick={() => flip(open ? "page" : "cover", open ? -1 : 1)}
+      >
+        {open ? "Previous day" : "Open notebook"}
+      </button>
       {open ? (
         <button
           type="button"
-          className="book__close"
-          aria-label="Close notebook"
-          onClick={closeBook}
+          className="sr-only"
+          onClick={() => flip("page", 1)}
         >
-          <span className="book__ribbon" aria-hidden="true" />
+          Next day
         </button>
       ) : null}
     </div>

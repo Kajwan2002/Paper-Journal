@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/book.tsx","./src/components/cover.tsx","./src/components/dailypage.tsx","./src/components/desk.tsx","./src/components/ruledlines.tsx","./src/lib/date.ts","./src/lib/db.ts","./src/lib/pagestore.ts","./src/lib/rapidlog.ts","./src/lib/spring.ts","./src/state/session.ts"],"version":"5.9.3"}
