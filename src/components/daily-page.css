@@ -65,6 +65,36 @@
   text-wrap: balance;
 }
 
+/* the printed date is a quiet button — tap to jump to another day */
+.daily__datebtn {
+  display: block;
+  text-align: left;
+  color: inherit;
+}
+.daily__datebtn:hover .daily__date {
+  color: var(--oxblood);
+}
+
+/* folded bottom-outer corner — appears only when you've wandered off today */
+.daily__dogear {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: clamp(26px, 7%, 44px);
+  aspect-ratio: 1;
+  background: linear-gradient(
+    225deg,
+    var(--paper-shade) 0 46%,
+    color-mix(in srgb, var(--paper) 78%, #000 12%) 47% 52%,
+    transparent 53%
+  );
+  filter: drop-shadow(-2px -2px 3px rgba(0, 0, 0, 0.18));
+  transition: width 0.15s ease;
+}
+.daily__dogear:hover {
+  width: clamp(34px, 9%, 56px);
+}
+
 .daily__body {
   flex: 1;
   margin-top: 0.9rem;

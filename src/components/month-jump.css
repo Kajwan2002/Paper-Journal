@@ -1,0 +1,118 @@
+.mjump__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mjump {
+  width: min(20rem, 82%);
+  padding: 1rem 1.1rem 1.2rem;
+  border-radius: 3px;
+  background:
+    radial-gradient(
+      120% 100% at 30% 0%,
+      color-mix(in srgb, var(--paper) 92%, #fff 6%),
+      var(--paper) 60%,
+      var(--paper-shade) 100%
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 18px 40px -12px rgba(0, 0, 0, 0.4);
+  color: var(--ink);
+}
+
+.mjump__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+.mjump__title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 1.15rem;
+}
+.mjump__nav {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--ink-soft);
+  border-radius: 999px;
+}
+.mjump__nav:hover {
+  color: var(--oxblood);
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.mjump__dow,
+.mjump__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.mjump__dow {
+  margin-bottom: 0.2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 45%, transparent);
+  padding-bottom: 0.3rem;
+}
+.mjump__dow span {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--oxblood);
+}
+
+.mjump__grid {
+  gap: 1px;
+  margin-top: 0.35rem;
+}
+.mjump__day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-family: var(--serif);
+  font-size: 0.92rem;
+  color: var(--ink);
+  border-radius: 999px;
+  position: relative;
+  transition: background 0.12s ease;
+}
+.mjump__day:hover {
+  background: color-mix(in srgb, var(--brass) 16%, transparent);
+}
+.mjump__day--spill {
+  color: var(--ink-faint);
+}
+.mjump__day--here {
+  background: color-mix(in srgb, var(--brass) 24%, transparent);
+}
+.mjump__day--today {
+  box-shadow: inset 0 0 0 1.5px var(--oxblood);
+  font-weight: 600;
+}
+.mjump__day--dot::after {
+  content: "";
+  position: absolute;
+  bottom: 0.32em;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ink-soft);
+}
+
+.mjump__today {
+  display: block;
+  margin: 0.7rem auto 0;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--oxblood);
+}
+.mjump__today:hover {
+  color: var(--oxblood-bright);
+}

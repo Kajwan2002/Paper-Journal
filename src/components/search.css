@@ -1,0 +1,118 @@
+.search__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 21;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8%;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.search {
+  width: min(24rem, 88%);
+  max-height: 78%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 18px 44px -12px rgba(0, 0, 0, 0.42);
+}
+
+.search__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+}
+.search__glyph {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--oxblood);
+}
+.search__field {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  color: var(--ink);
+  caret-color: var(--oxblood);
+}
+.search__field::placeholder {
+  color: var(--ink-faint);
+}
+
+.search__peeks {
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.search__peek {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.55rem 0.5rem;
+  border-radius: 2px;
+  /* a dog-eared page corner */
+  background: linear-gradient(
+      225deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--paper) 82%, #000 7%) 10px 12px,
+      var(--paper-shade) 12px
+    );
+  margin-bottom: 0.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.search__peek--sel {
+  background: linear-gradient(
+      225deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--brass) 30%, transparent) 10px 12px,
+      color-mix(in srgb, var(--brass) 16%, var(--paper-shade)) 12px
+    );
+}
+.search__when {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+  margin-bottom: 0.15rem;
+}
+.search__line {
+  display: flex;
+  gap: 0.4rem;
+  font-family: var(--serif);
+  font-size: 0.96rem;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.search__linemark {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  flex: none;
+}
+.search__line mark {
+  background: color-mix(in srgb, var(--brass) 42%, transparent);
+  color: inherit;
+  border-radius: 1px;
+}
+
+.search__empty {
+  margin: 0;
+  padding: 0.9rem;
+  font-style: italic;
+  color: var(--ink-faint);
+  text-align: center;
+}

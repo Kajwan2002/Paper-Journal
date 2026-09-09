@@ -16,7 +16,10 @@ import { paintPage } from "@/render/paintPage";
 import { paintCover } from "@/render/paintCover";
 import { hexToRgb, readPalette } from "@/lib/theme";
 import { prefersReducedMotion } from "@/lib/prefs";
+import { useOverlay } from "@/state/overlay";
 import { DailyPage } from "@/components/DailyPage";
+import { MonthJump } from "@/components/MonthJump";
+import { Search } from "@/components/Search";
 import "./book.css";
 
 const ASPECT = 0.7; // one page: width / height
@@ -92,6 +95,10 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const openBook = useSession((s) => s.openBook);
   const closeBook = useSession((s) => s.closeBook);
   const step = useSession((s) => s.step);
+
+  const monthOpen = useOverlay((s) => s.month);
+  const searchOpen = useOverlay((s) => s.search);
+  const closeOverlay = useOverlay((s) => s.close);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
@@ -406,6 +413,8 @@ export function Book({ notebook }: { notebook: Notebook }) {
   // --- keyboard ----------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const ov = useOverlay.getState();
+      if (ov.month || ov.search) return; // the overlay owns the keyboard
       const el = document.activeElement;
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
         return;
@@ -554,6 +563,17 @@ export function Book({ notebook }: { notebook: Notebook }) {
         >
           Next day
         </button>
+      ) : null}
+
+      {monthOpen ? (
+        <MonthJump
+          notebookId={notebook.id}
+          anchorDate={date}
+          onClose={closeOverlay}
+        />
+      ) : null}
+      {searchOpen ? (
+        <Search notebookId={notebook.id} onClose={closeOverlay} />
       ) : null}
     </div>
   );
