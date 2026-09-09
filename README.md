@@ -3,6 +3,8 @@
 A planner that looks like a leather journal and thinks like a very organised
 assistant. Web‑first PWA — one codebase for iPhone, iPad and PC.
 
+**Live:** https://kajwan2002.github.io/Paper-Journal/ (auto‑deploys from `main`)
+
 See [`design-brief.html`](design-brief.html) for the full concept, feature tiers
 and open decisions. Published: https://claude.ai/code/artifact/9e7c46ef-c96c-4198-abba-6721035727a1
 
