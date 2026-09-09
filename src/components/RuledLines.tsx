@@ -233,18 +233,20 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
             onKeyDown={(e) => onKey(e, line.id)}
           />
           <span className="ruled__strike" aria-hidden="true" />
-          <button
-            type="button"
-            className="ruled__grip"
-            tabIndex={-1}
-            aria-label="Drag to reorder"
-            onPointerDown={(e) => onGripDown(e, line.id)}
-            onPointerMove={onGripMove}
-            onPointerUp={onGripUp}
-            onPointerCancel={onGripUp}
-          >
-            ⠿
-          </button>
+          {rows.length > 1 ? (
+            <button
+              type="button"
+              className="ruled__grip"
+              tabIndex={-1}
+              aria-label="Drag to reorder"
+              onPointerDown={(e) => onGripDown(e, line.id)}
+              onPointerMove={onGripMove}
+              onPointerUp={onGripUp}
+              onPointerCancel={onGripUp}
+            >
+              ⠿
+            </button>
+          ) : null}
         </div>
       ))}
       {pageEmpty && placeholder ? (

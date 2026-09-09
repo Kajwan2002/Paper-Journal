@@ -1,15 +1,18 @@
 .mjump__scrim {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 60;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--ink) 14%, transparent);
+  padding: 1rem;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
   -webkit-tap-highlight-color: transparent;
 }
 
 .mjump {
-  width: min(20rem, 82%);
+  width: min(20rem, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
   padding: 1rem 1.1rem 1.2rem;
   border-radius: 3px;
   background:

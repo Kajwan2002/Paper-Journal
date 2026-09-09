@@ -7,6 +7,8 @@ import { useSession } from "@/state/session";
 import { useOverlay } from "@/state/overlay";
 import { Desk } from "@/components/Desk";
 import { Book } from "@/components/Book";
+import { MonthJump } from "@/components/MonthJump";
+import { Search } from "@/components/Search";
 
 export function App() {
   const [shelf, setShelf] = useState<Notebook[] | null>(null);
@@ -14,6 +16,9 @@ export function App() {
   const setNotebook = useSession((s) => s.setNotebook);
   const date = useSession((s) => s.date);
   const goToday = useSession((s) => s.goToday);
+  const monthOpen = useOverlay((s) => s.month);
+  const searchOpen = useOverlay((s) => s.search);
+  const closeOverlay = useOverlay((s) => s.close);
 
   useEffect(() => {
     let alive = true;
@@ -72,6 +77,20 @@ export function App() {
   const current = shelf?.find((n) => n.id === notebookId) ?? shelf?.[0] ?? null;
 
   return (
-    <Desk>{current ? <Book key={current.id} notebook={current} /> : null}</Desk>
+    <>
+      <Desk>
+        {current ? <Book key={current.id} notebook={current} /> : null}
+      </Desk>
+      {current && monthOpen ? (
+        <MonthJump
+          notebookId={current.id}
+          anchorDate={date}
+          onClose={closeOverlay}
+        />
+      ) : null}
+      {current && searchOpen ? (
+        <Search notebookId={current.id} onClose={closeOverlay} />
+      ) : null}
+    </>
   );
 }

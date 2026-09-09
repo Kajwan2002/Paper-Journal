@@ -18,8 +18,6 @@ import { hexToRgb, readPalette } from "@/lib/theme";
 import { prefersReducedMotion } from "@/lib/prefs";
 import { useOverlay } from "@/state/overlay";
 import { DailyPage } from "@/components/DailyPage";
-import { MonthJump } from "@/components/MonthJump";
-import { Search } from "@/components/Search";
 import "./book.css";
 
 const ASPECT = 0.7; // one page: width / height
@@ -96,9 +94,6 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const closeBook = useSession((s) => s.closeBook);
   const step = useSession((s) => s.step);
 
-  const monthOpen = useOverlay((s) => s.month);
-  const searchOpen = useOverlay((s) => s.search);
-  const closeOverlay = useOverlay((s) => s.close);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
@@ -565,16 +560,6 @@ export function Book({ notebook }: { notebook: Notebook }) {
         </button>
       ) : null}
 
-      {monthOpen ? (
-        <MonthJump
-          notebookId={notebook.id}
-          anchorDate={date}
-          onClose={closeOverlay}
-        />
-      ) : null}
-      {searchOpen ? (
-        <Search notebookId={notebook.id} onClose={closeOverlay} />
-      ) : null}
     </div>
   );
 }
