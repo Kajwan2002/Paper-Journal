@@ -75,7 +75,7 @@ function measure(el: HTMLElement | null): Geom {
     spreadW,
     // on a phone push the spine near the left edge so the active (right)
     // page fills the screen with just a sliver of yesterday at the gutter
-    spineX: narrow ? m + availW * 0.08 : centerX,
+    spineX: narrow ? m * 0.6 + availW * 0.045 : centerX,
     centerX,
     topY: Math.max(m, (stageH - pageH) / 2),
     canvasW: spreadW * CANVAS_PAD_X,
