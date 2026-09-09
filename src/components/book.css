@@ -1,6 +1,7 @@
 .book {
   --edge: clamp(6px, 1.5vmin, 11px);
   perspective: 2000px;
+  transition: left 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
 }
@@ -12,8 +13,8 @@
   border-radius: 5px;
   z-index: 0;
   transition:
-    left 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
-    right 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+    left 0.42s cubic-bezier(0.22, 0.61, 0.36, 1),
+    right 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
   background: linear-gradient(
     100deg,
     var(--leather-lo),
@@ -59,11 +60,6 @@
   z-index: 2;
   overflow: hidden;
   background: var(--paper);
-  opacity: 0;
-}
-.book--open .book__half {
-  opacity: 1;
-  transition: opacity 0.3s ease 0.22s;
 }
 .book__half--left {
   left: 0;
@@ -102,9 +98,8 @@
   );
 }
 
-/* leather cover — the front of the book, hinged at the spine.
-   closed: translated left so it sits centred on the desk.
-   open:   flipped ~180deg about the spine, dropped behind the pages. */
+/* the static leather cover — shown only while the book is fully closed.
+   Opening / closing is animated by the WebGL leaf, not this element. */
 .book__cover {
   position: absolute;
   top: 0;
@@ -112,28 +107,11 @@
   width: 50%;
   height: 100%;
   z-index: 6;
-  transform-style: preserve-3d;
-  transform-origin: left center;
-  transform: translateX(-50%) rotateY(0deg);
-  transition: transform 0.62s cubic-bezier(0.34, 0.03, 0.24, 1);
-  container-type: inline-size;
-}
-.book--open .book__cover {
-  transform: translateX(0%) rotateY(-172deg);
-  z-index: 0;
-  pointer-events: none;
-}
-
-.book__cover-face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
   border-radius: 2px 7px 7px 2px;
   overflow: hidden;
   display: grid;
   place-items: center;
-}
-.book__cover-face--front {
+  container-type: inline-size;
   background: radial-gradient(
     130% 96% at 72% 20%,
     var(--leather-hi),
@@ -143,16 +121,6 @@
   box-shadow:
     22px 24px 52px -14px rgba(0, 0, 0, 0.55),
     inset 0 0 70px -22px rgba(0, 0, 0, 0.5);
-}
-.book__cover-face--back {
-  transform: rotateY(180deg);
-  background: linear-gradient(
-    100deg,
-    var(--leather-lo),
-    var(--leather) 60%,
-    var(--leather-lo)
-  );
-  box-shadow: inset 0 0 80px -20px rgba(0, 0, 0, 0.7);
 }
 .book__cover--oxblood {
   --leather: #5a2a2f;
@@ -212,16 +180,14 @@
     0 -1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* closed: only the centred cover shows */
-.book:not(.book--open) .book__stack {
+/* closed: board frames just the centred cover, stacks + gutter hidden */
+.book--closed .book__stack,
+.book--closed .book__gutter {
   opacity: 0;
 }
-.book:not(.book--open) .book__gutter {
-  opacity: 0;
-}
-.book:not(.book--open) .book__board {
-  left: calc(25% - var(--edge));
-  right: calc(25% - var(--edge));
+.book--closed .book__board {
+  left: calc(50% - var(--edge));
+  right: calc(var(--edge) * -1.4);
 }
 
 /* the deforming leaf */
@@ -230,20 +196,32 @@
   z-index: 8;
   pointer-events: none;
   opacity: 0;
+  transition: opacity 0.22s ease;
 }
 .book--turning .book__gl {
   opacity: 1;
-}
-.book--settling .book__gl {
-  opacity: 0;
-  transition: opacity 0.24s ease;
+  transition: none;
 }
 .book--settling .book__half {
   animation: bookSettle 0.24s ease;
 }
+
+/* closing the cover: collapse the spread in step with the leaf sweep */
+.book--closing .book__half {
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.book--closing .book__stack,
+.book--closing .book__gutter {
+  opacity: 0;
+}
+.book--closing .book__board {
+  left: calc(50% - var(--edge));
+  right: calc(var(--edge) * -1.4);
+}
 @keyframes bookSettle {
   from {
-    opacity: 0.3;
+    opacity: 0.35;
   }
   to {
     opacity: 1;
@@ -294,7 +272,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .book,
-  .book__cover {
+  .book__board {
     transition: none;
   }
 }

@@ -295,16 +295,10 @@ export function Book({ notebook }: { notebook: Notebook }) {
 
   const flip = useCallback(
     (kind: Kind, dir: 1 | -1) => {
-      if (kind === "cover") {
-        // the cover is pure CSS — flipping the .book--open class animates it
-        if (dir === 1) openBook();
-        else closeBook();
-        return;
-      }
       if (!begin(kind, dir)) return;
-      settle(1, 3.2);
+      settle(1, kind === "cover" ? 2.6 : 3.2);
     },
-    [begin, settle, openBook, closeBook],
+    [begin, settle],
   );
 
   // --- gesture -------------------------------------------------------
@@ -352,15 +346,6 @@ export function Book({ notebook }: { notebook: Notebook }) {
 
       const grab = grabRef.current;
       if (!grab) return;
-
-      // the cover doesn't track the finger — just open on a decisive pull
-      if (grab.kind === "cover") {
-        if (!last) return;
-        const vSigned = (dxs || 0) * vx * 1000;
-        if (-mx > grab.span * 0.4 || -vSigned / grab.span > FLING) openBook();
-        grabRef.current = null;
-        return;
-      }
 
       if (!turnRef.current) {
         const want = grab.dir === 1 ? -8 : 8; // fwd pulls left, back pulls right
@@ -448,6 +433,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
 
   const g = geom;
   const closed = !open && !turn;
+  const closing = turn?.kind === "cover" && turn.dir === -1;
   const spineFrac = g.pageW / g.spreadW;
 
   const leftDate = turn ? turn.leftDate : addDays(date, -1);
@@ -459,11 +445,13 @@ export function Book({ notebook }: { notebook: Notebook }) {
       ref={wrapRef}
       className={`book ${open ? "book--open" : ""} ${
         turn ? "book--turning" : ""
-      } ${settling ? "book--settling" : ""} ${closed ? "book--closed" : ""}`}
+      } ${closing ? "book--closing" : ""} ${
+        settling ? "book--settling" : ""
+      } ${closed ? "book--closed" : ""}`}
       style={
         {
           position: "absolute",
-          left: `${g.spineX - g.pageW}px`,
+          left: `${(open || turn ? g.spineX - g.pageW : g.spineX - g.pageW * 1.5)}px`,
           top: `${g.topY}px`,
           width: `${g.spreadW}px`,
           height: `${g.pageH}px`,
@@ -476,35 +464,34 @@ export function Book({ notebook }: { notebook: Notebook }) {
       <div className="book__stack book__stack--l" aria-hidden="true" />
       <div className="book__stack book__stack--r" aria-hidden="true" />
 
-      <div className="book__half book__half--left" aria-hidden="true">
-        <DailyPage
-          notebookId={notebook.id}
-          date={leftDate}
-          interactive={false}
-        />
-      </div>
-      <div className="book__gutter" aria-hidden="true" />
-      <div className="book__half book__half--right">
-        <DailyPage
-          notebookId={notebook.id}
-          date={rightDate}
-          interactive={rightLive}
-        />
-      </div>
-
-      <div
-        className={`book__cover book__cover--${notebook.cover}`}
-        aria-hidden={open}
-      >
-        <div className="book__cover-face book__cover-face--front">
+      {closed ? (
+        <div
+          className={`book__cover book__cover--${notebook.cover}`}
+          aria-hidden="true"
+        >
           <span className="book__cover-grain" />
           <span className="book__cover-frame" />
           <span className="book__cover-title">{notebook.title}</span>
         </div>
-        <div className="book__cover-face book__cover-face--back">
-          <span className="book__cover-grain" />
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="book__half book__half--left" aria-hidden="true">
+            <DailyPage
+              notebookId={notebook.id}
+              date={leftDate}
+              interactive={false}
+            />
+          </div>
+          <div className="book__gutter" aria-hidden="true" />
+          <div className="book__half book__half--right">
+            <DailyPage
+              notebookId={notebook.id}
+              date={rightDate}
+              interactive={rightLive}
+            />
+          </div>
+        </>
+      )}
 
       <canvas
         ref={glRef}
