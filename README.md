@@ -27,7 +27,9 @@ npm run typecheck   # tsc, no emit
 - **The leather notebook.** Opens with a page‑flip animation — tap the cover, or
   swipe. Close with the ribbon bookmark.
 - **The daily page.** One page per day, pre‑printed date header and folio (day of
-  the year). Turn pages by tapping the left/right edge, swiping, or arrow keys.
+  the year). **Drag anywhere on the page to turn it** — the leaf follows your
+  finger and a spring finishes the turn or snaps it back based on how far and how
+  fast you flung it. Or tap the left/right edge, or use the arrow keys.
 - **Rapid logging.** Type a signifier at the start of a line:
   `-` task · `x` done · `o` event · `>` moved · `*` priority · `~` idea · (plain) note.
   Tap a task's glyph to tick it off. Enter for a new line; Backspace on an empty

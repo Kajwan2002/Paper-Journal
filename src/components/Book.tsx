@@ -1,14 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDrag } from "@use-gesture/react";
 import { useSession } from "@/state/session";
 import { addDays } from "@/lib/date";
 import { prime } from "@/lib/pageStore";
+import { clamp01, runSpring } from "@/lib/spring";
 import type { Notebook } from "@/lib/db";
 import { DailyPage } from "@/components/DailyPage";
 import { Cover } from "@/components/Cover";
 import "./book.css";
 
 type Dir = "next" | "prev";
+
+const MAX_ANGLE = 168; // degrees the turning leaf sweeps through
+const GRAB = 0.82; // fraction of page width that equals a full turn
+
+function reducedMotion(): boolean {
+  return (
+    typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
 
 export function Book({ notebook }: { notebook: Notebook }) {
   const open = useSession((s) => s.open);
@@ -18,44 +29,140 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const step = useSession((s) => s.step);
 
   const frameRef = useRef<HTMLDivElement>(null);
+  const leafRef = useRef<HTMLDivElement | null>(null);
+  const curlRef = useRef<HTMLDivElement | null>(null);
+
   const [turn, setTurn] = useState<Dir | null>(null);
   const turnRef = useRef<Dir | null>(null);
-  const busy = useRef(false);
+  const progressRef = useRef(0);
+  const busyRef = useRef(false);
+  const gestureRef = useRef(false);
+  const cancelSpringRef = useRef<(() => void) | null>(null);
 
-  const endTurn = useCallback(() => {
+  // Write the leaf transform straight to the DOM — no React render per frame.
+  const paint = useCallback((p: number) => {
+    progressRef.current = p;
     const dir = turnRef.current;
-    if (!dir) return;
-    turnRef.current = null;
-    busy.current = false;
-    setTurn(null);
-    step(dir === "next" ? 1 : -1);
-  }, [step]);
+    const leaf = leafRef.current;
+    if (!dir || !leaf) return;
+    const angle = dir === "prev" ? -MAX_ANGLE * (1 - p) : -MAX_ANGLE * p;
+    leaf.style.transform = `rotateY(${angle}deg)`;
+    if (curlRef.current) {
+      curlRef.current.style.opacity = String(
+        Math.sin(clamp01(p) * Math.PI) * 0.5,
+      );
+    }
+  }, []);
 
-  const startTurn = useCallback(
-    (dir: Dir) => {
-      if (busy.current || !open) return;
-      busy.current = true;
-      turnRef.current = dir;
-      void prime(notebook.id, addDays(date, dir === "next" ? 1 : -1));
-      setTurn(dir);
-      // safety net in case animationend is missed (e.g. tab backgrounded)
-      window.setTimeout(() => {
-        if (busy.current) endTurn();
-      }, 1000);
+  const cleanup = useCallback(
+    (commit: boolean) => {
+      const dir = turnRef.current;
+      turnRef.current = null;
+      gestureRef.current = false;
+      cancelSpringRef.current = null;
+      busyRef.current = false;
+      setTurn(null);
+      if (commit && dir) step(dir === "next" ? 1 : -1);
     },
-    [open, notebook.id, date, endTurn],
+    [step],
   );
 
-  const bindEdge = useDrag(
-    ({ args, last, tap, movement: [mx], velocity: [vx] }) => {
-      if (!open || !last) return;
-      const dir = args[0] as Dir;
-      if (tap) {
-        startTurn(dir);
+  const settle = useCallback(
+    (commit: boolean, velocity: number) => {
+      cancelSpringRef.current?.();
+      if (reducedMotion()) {
+        paint(commit ? 1 : 0);
+        cleanup(commit);
         return;
       }
-      const width = frameRef.current?.clientWidth ?? 380;
-      if (Math.abs(mx) / width > 0.16 || vx > 0.35) startTurn(dir);
+      cancelSpringRef.current = runSpring(
+        progressRef.current,
+        commit ? 1 : 0,
+        velocity,
+        paint,
+        () => cleanup(commit),
+        { stiffness: 210, damping: 24 },
+      );
+    },
+    [paint, cleanup],
+  );
+
+  const beginTurn = useCallback(
+    (dir: Dir) => {
+      if (busyRef.current) return false;
+      busyRef.current = true;
+      turnRef.current = dir;
+      progressRef.current = 0;
+      void prime(notebook.id, addDays(date, dir === "next" ? 1 : -1));
+      setTurn(dir);
+      return true;
+    },
+    [notebook.id, date],
+  );
+
+  // tap / keyboard: a full spring-driven turn
+  const flip = useCallback(
+    (dir: Dir) => {
+      if (!open || !beginTurn(dir)) return;
+      requestAnimationFrame(() => settle(true, 2.4));
+    },
+    [open, beginTurn, settle],
+  );
+
+  useLayoutEffect(() => {
+    if (turn) paint(progressRef.current);
+  }, [turn, paint]);
+
+  useEffect(() => () => cancelSpringRef.current?.(), []);
+
+  const bindWell = useDrag(
+    (state) => {
+      if (!open) return;
+      const {
+        first,
+        last,
+        tap,
+        movement: [mx],
+        velocity: [vx],
+        direction: [dx],
+        event,
+      } = state;
+      const targetEl = event.target as HTMLElement | null;
+
+      if (tap) {
+        if (targetEl?.closest(".ruled__input, button")) return;
+        const rect = frameRef.current?.getBoundingClientRect();
+        const cx = (event as PointerEvent).clientX;
+        if (!rect || cx == null) return;
+        const x = cx - rect.left;
+        if (x < rect.width * 0.3) flip("prev");
+        else if (x > rect.width * 0.7) flip("next");
+        return;
+      }
+
+      if (first) gestureRef.current = false;
+
+      if (!gestureRef.current) {
+        if (Math.abs(mx) < 6 || busyRef.current) return;
+        if (!beginTurn(mx < 0 ? "next" : "prev")) return;
+        gestureRef.current = true;
+      }
+
+      const dir = turnRef.current;
+      if (!dir) return;
+      const w = (frameRef.current?.clientWidth ?? 380) * GRAB;
+      const travelled = dir === "next" ? -mx : mx;
+      const p = clamp01(travelled / w);
+
+      if (!last) {
+        paint(p);
+        return;
+      }
+
+      gestureRef.current = false;
+      const turnVel = ((dir === "next" ? -1 : 1) * dx * vx * 1000) / w;
+      const commit = turnVel > 0.9 ? true : turnVel < -0.9 ? false : p > 0.5;
+      settle(commit, turnVel);
     },
     { axis: "x", filterTaps: true },
   );
@@ -74,16 +181,16 @@ export function Book({ notebook }: { notebook: Notebook }) {
       const el = document.activeElement;
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
         return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") startTurn("next");
-      else if (e.key === "ArrowLeft" || e.key === "PageUp") startTurn("prev");
+      if (e.key === "ArrowRight" || e.key === "PageDown") flip("next");
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") flip("prev");
       else if (e.key === "Escape") closeBook();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, startTurn, closeBook]);
+  }, [open, flip, closeBook]);
 
-  // `next` peels the current page away to reveal date+1 behind it;
-  // `prev` sweeps date-1 in from the spine to cover the current page.
+  // `next` peels the current page away to reveal date+1; `prev` sweeps
+  // date-1 in from the spine to cover the current page.
   const baseDate = turn === "next" ? addDays(date, 1) : date;
   const leafDate = turn === "prev" ? addDays(date, -1) : date;
 
@@ -92,7 +199,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
       <div className="book__spine" aria-hidden="true" />
       <div className="book__edges" aria-hidden="true" />
 
-      <div className="book__well">
+      <div className="book__well" {...bindWell()}>
         <div className="book__leaf book__leaf--base">
           <DailyPage
             notebookId={notebook.id}
@@ -103,10 +210,12 @@ export function Book({ notebook }: { notebook: Notebook }) {
 
         {turn ? (
           <div
+            ref={(el) => {
+              leafRef.current = el;
+            }}
             className="book__leaf book__leaf--turning"
-            data-dir={turn}
-            onAnimationEnd={(e) => {
-              if (e.target === e.currentTarget) endTurn();
+            style={{
+              transform: `rotateY(${turn === "prev" ? -MAX_ANGLE : 0}deg)`,
             }}
           >
             <div className="book__face book__face--front">
@@ -117,29 +226,34 @@ export function Book({ notebook }: { notebook: Notebook }) {
               />
             </div>
             <div className="book__face book__face--back" aria-hidden="true" />
-            <div className="book__curl" aria-hidden="true" />
+            <div
+              ref={(el) => {
+                curlRef.current = el;
+              }}
+              className="book__curl"
+              style={{ opacity: 0 }}
+              aria-hidden="true"
+            />
           </div>
         ) : null}
 
         {open ? (
-          <>
-            <div
-              className="book__edge book__edge--prev"
-              {...bindEdge("prev")}
-              onClick={() => startTurn("prev")}
-              role="button"
-              aria-label="Previous day"
-              tabIndex={-1}
-            />
-            <div
-              className="book__edge book__edge--next"
-              {...bindEdge("next")}
-              onClick={() => startTurn("next")}
-              role="button"
-              aria-label="Next day"
-              tabIndex={-1}
-            />
-          </>
+          <div className="book__nav" aria-hidden={false}>
+            <button
+              type="button"
+              className="sr-only"
+              onClick={() => flip("prev")}
+            >
+              Previous day
+            </button>
+            <button
+              type="button"
+              className="sr-only"
+              onClick={() => flip("next")}
+            >
+              Next day
+            </button>
+          </div>
         ) : null}
       </div>
 

@@ -44,6 +44,7 @@
   position: absolute;
   inset: 0 0 0 var(--spine);
   transform-style: preserve-3d;
+  touch-action: pan-y;
   z-index: 2;
 }
 
@@ -65,28 +66,7 @@
   transform-style: preserve-3d;
   will-change: transform;
   backface-visibility: visible;
-}
-.book__leaf--turning[data-dir="next"] {
-  animation: leaf-next 0.52s var(--ease-turn) forwards;
-}
-.book__leaf--turning[data-dir="prev"] {
-  animation: leaf-prev 0.52s var(--ease-turn) forwards;
-}
-@keyframes leaf-next {
-  from {
-    transform: rotateY(0deg);
-  }
-  to {
-    transform: rotateY(-168deg);
-  }
-}
-@keyframes leaf-prev {
-  from {
-    transform: rotateY(-168deg);
-  }
-  to {
-    transform: rotateY(0deg);
-  }
+  /* transform is driven imperatively (src/lib/spring.ts) */
 }
 
 .book__face {
@@ -126,34 +106,37 @@
     rgba(0, 0, 0, 0) 62%,
     rgba(0, 0, 0, 0.22) 100%
   );
-  animation: book-curl 0.52s var(--ease-turn);
-}
-@keyframes book-curl {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  45% {
-    opacity: 0.5;
-  }
+  /* opacity is driven imperatively during the turn */
 }
 
-/* page-turn grab zones */
-.book__edge {
+.book__nav {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: max(14%, 46px);
-  z-index: 6;
-  cursor: pointer;
-  touch-action: pan-y;
-  -webkit-tap-highlight-color: transparent;
+  inset: 0;
+  pointer-events: none;
 }
-.book__edge--prev {
-  left: 0;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
-.book__edge--next {
-  right: 0;
+.sr-only:focus-visible {
+  position: absolute;
+  width: auto;
+  height: auto;
+  margin: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  clip: auto;
+  pointer-events: auto;
+  background: var(--paper-shade);
+  color: var(--ink);
+  border-radius: 3px;
+  z-index: 50;
 }
 
 .book__coverdrag {
