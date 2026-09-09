@@ -228,14 +228,14 @@
   }
 }
 
-/* ribbon bookmark — hangs from the top, tap to close */
+/* ribbon bookmark — hangs from the binding at the top, tap to close */
 .book__ribbon {
   position: absolute;
   z-index: 7;
   top: calc(var(--edge) * -1);
-  left: calc(50% + 42%);
+  left: calc(50% + 3.5%);
   width: clamp(9px, 2vmin, 13px);
-  height: 27%;
+  height: 24%;
   background: linear-gradient(
     90deg,
     var(--oxblood-bright),

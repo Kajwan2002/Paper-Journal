@@ -31,15 +31,21 @@ interface Turn {
   leftDate: DayKey; // what the left half shows during the turn
   rightDate: DayKey; // what the right half shows during the turn
 }
+const NARROW_MAX = 680; // below this the spread won't fit — zoom to the active page
+
 interface Geom {
   pageW: number;
   pageH: number;
   spreadW: number;
-  spineX: number; // from the stage's left edge
+  /** screen x of the spine when the book is open */
+  spineX: number;
+  /** screen x of the spine when the book is closed (cover always centred) */
+  centerX: number;
   topY: number;
   canvasW: number;
   canvasH: number;
   dpr: number;
+  narrow: boolean;
 }
 
 function measure(el: HTMLElement | null): Geom {
@@ -48,21 +54,33 @@ function measure(el: HTMLElement | null): Geom {
   const stageH = el?.clientHeight ?? window.innerHeight;
   const availW = stageW - m * 2;
   const availH = stageH - m * 2;
+  const narrow = availW < NARROW_MAX;
+
+  // narrow: size a whole page to the width and let the left page fall off
+  // the screen; wide: fit the whole two-page spread.
   const pageH = Math.max(
     220,
-    Math.min(availH * 0.82, ((availW / 2) * 0.98) / ASPECT),
+    narrow
+      ? Math.min(availH * 0.9, (availW * 0.96) / ASPECT)
+      : Math.min(availH * 0.82, ((availW / 2) * 0.98) / ASPECT),
   );
   const pageW = pageH * ASPECT;
   const spreadW = pageW * 2;
+  const centerX = stageW / 2;
+
   return {
     pageW,
     pageH,
     spreadW,
-    spineX: stageW / 2,
-    topY: (stageH - pageH) / 2,
+    // on a phone push the spine near the left edge so the active (right)
+    // page fills the screen with just a sliver of yesterday at the gutter
+    spineX: narrow ? m + availW * 0.08 : centerX,
+    centerX,
+    topY: Math.max(m, (stageH - pageH) / 2),
     canvasW: spreadW * CANVAS_PAD_X,
     canvasH: pageH * CANVAS_PAD_Y,
     dpr: Math.min(window.devicePixelRatio || 1, 2),
+    narrow,
   };
 }
 
@@ -321,26 +339,31 @@ export function Book({ notebook }: { notebook: Notebook }) {
       } = state;
       const rect = wrapRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const spineFrac = geomRef.current.pageW / rect.width; // spine within .book
+      // fraction across the active page: 0 at the spine, 1 at its outer
+      // edge, negative over the facing page. Works in both layouts.
+      const spineScreenX = rect.left + rect.width / 2;
+      const pageFrac = (x: number) => (x - spineScreenX) / geomRef.current.pageW;
 
       if (tap) {
         const el = event.target as HTMLElement | null;
         if (el?.closest(".ruled__input, button, a")) return;
         if (!open) return flip("cover", 1);
-        const x = (px - rect.left) / rect.width;
-        if (x > spineFrac + (1 - spineFrac) * 0.5) flip("page", 1);
-        else if (x < spineFrac * 0.6) flip("page", -1);
+        const f = pageFrac(px);
+        if (f > 0.52) flip("page", 1);
+        else if (f < 0.12) flip("page", -1);
         return;
       }
 
       if (first) {
         grabRef.current = null;
         if (busyRef.current) return;
-        const sx = (ix - rect.left) / rect.width;
         const span = geomRef.current.pageW * 0.82;
-        if (!open) grabRef.current = { kind: "cover", dir: 1, span };
-        else if (sx > spineFrac) grabRef.current = { kind: "page", dir: 1, span };
-        else grabRef.current = { kind: "page", dir: -1, span };
+        if (!open) {
+          grabRef.current = { kind: "cover", dir: 1, span };
+        } else {
+          const dir = pageFrac(ix) >= 0.22 ? 1 : -1;
+          grabRef.current = { kind: "page", dir, span };
+        }
         return;
       }
 
@@ -451,7 +474,9 @@ export function Book({ notebook }: { notebook: Notebook }) {
       style={
         {
           position: "absolute",
-          left: `${(open || turn ? g.spineX - g.pageW : g.spineX - g.pageW * 1.5)}px`,
+          left: `${
+            open || turn ? g.spineX - g.pageW : g.centerX - g.pageW * 1.5
+          }px`,
           top: `${g.topY}px`,
           width: `${g.spreadW}px`,
           height: `${g.pageH}px`,
