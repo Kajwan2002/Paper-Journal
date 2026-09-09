@@ -69,8 +69,10 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
 
     if (e.key === "Enter") {
       e.preventDefault();
+      // tasks tend to come in runs; everything else drops back to a plain line
+      const prevKind = rows[idx].kind;
       const created = newLine(
-        rows[idx].kind === "done" ? "task" : rows[idx].kind,
+        prevKind === "task" || prevKind === "done" ? "task" : "note",
       );
       const next = [...rows];
       next.splice(idx + 1, 0, created);
