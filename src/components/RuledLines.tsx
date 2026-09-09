@@ -12,6 +12,7 @@ import {
   parseLine,
   type Line,
 } from "@/lib/rapidlog";
+import { NAG_CAP } from "@/lib/rollover";
 import "./ruled-lines.css";
 
 interface Props {
@@ -47,7 +48,16 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
     const parsed = parseLine(raw);
     const kind = parsed.text !== raw ? parsed.kind : current.kind;
     const next = [...rows];
-    next[idx] = { ...current, kind, text: parsed.text };
+    next[idx] = {
+      ...current,
+      kind,
+      text: parsed.text,
+      // re-engaging with a nagged task resets the count
+      rolls:
+        current.rolls && parsed.text.trim() !== current.text.trim()
+          ? 0
+          : current.rolls,
+    };
     commit(next);
   };
 
@@ -57,21 +67,45 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
 
     if (e.key === "Enter") {
       e.preventDefault();
-      const prevKind = rows[idx].kind;
+      const prev = rows[idx];
       const created = newLine(
-        prevKind === "task" || prevKind === "done" ? "task" : "note",
+        prev.kind === "task" || prev.kind === "done" ? "task" : "note",
+        "",
+        prev.indent ?? 0,
       );
       const next = [...rows];
       next.splice(idx + 1, 0, created);
       commit(next);
       setFocusId(created.id);
+      return;
+    }
+
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const indent: 0 | 1 = e.shiftKey ? 0 : 1;
+      const next = [...rows];
+      next[idx] = { ...next[idx], indent };
+      commit(next);
+      setFocusId(id);
+      return;
+    }
+
+    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      const to = e.key === "ArrowUp" ? idx - 1 : idx + 1;
+      if (to < 0 || to >= rows.length) return;
+      e.preventDefault();
+      const next = [...rows];
+      [next[idx], next[to]] = [next[to], next[idx]];
+      commit(next);
+      setFocusId(id);
+      return;
     }
 
     if (e.key === "Backspace" && rows[idx].text === "" && rows.length > 1) {
       e.preventDefault();
       commit(rows.filter((l) => l.id !== id));
-      const prev = rows[idx - 1];
-      if (prev) setFocusId(prev.id);
+      const before = rows[idx - 1];
+      if (before) setFocusId(before.id);
     }
 
     if (e.key === "ArrowUp" && idx > 0) {
@@ -94,7 +128,12 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
   return (
     <div className="ruled">
       {rows.map((line) => (
-        <div key={line.id} className={`ruled__row ruled__row--${line.kind}`}>
+        <div
+          key={line.id}
+          className={`ruled__row ruled__row--${line.kind}`}
+          data-indent={line.indent ?? 0}
+          data-rolls={Math.min(line.rolls ?? 0, NAG_CAP)}
+        >
           <button
             type="button"
             className="ruled__glyph"

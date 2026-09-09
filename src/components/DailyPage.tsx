@@ -3,6 +3,7 @@ import {
   isToday,
   longDate,
   ordinalDay,
+  todayKey,
   weekday,
   type DayKey,
 } from "@/lib/date";
@@ -10,6 +11,9 @@ import { pageId } from "@/lib/db";
 import { getCached, prime, subscribe, writeLines } from "@/lib/pageStore";
 import type { Line } from "@/lib/rapidlog";
 import { GLYPH } from "@/lib/rapidlog";
+import { NAG_CAP } from "@/lib/rollover";
+import { useSession } from "@/state/session";
+import { useOverlay } from "@/state/overlay";
 import { RuledLines } from "@/components/RuledLines";
 import "./daily-page.css";
 
@@ -33,6 +37,8 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
 
   const today = isToday(date);
   const ready = lines !== undefined;
+  const openMonth = useOverlay((s) => s.openMonth);
+  const goToDate = useSession((s) => s.goToDate);
 
   return (
     <article className={`daily ${today ? "daily--today" : ""}`}>
@@ -44,7 +50,18 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
             {today ? "today" : `no. ${ordinalDay(date)}`}
           </span>
         </div>
-        <h1 className="daily__date">{longDate(date)}</h1>
+        {interactive ? (
+          <button
+            type="button"
+            className="daily__datebtn"
+            aria-label={`${longDate(date)} — jump to another day`}
+            onClick={openMonth}
+          >
+            <h1 className="daily__date">{longDate(date)}</h1>
+          </button>
+        ) : (
+          <h1 className="daily__date">{longDate(date)}</h1>
+        )}
       </header>
 
       <div className="daily__body">
@@ -60,6 +77,19 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
           )
         ) : null}
       </div>
+
+      {interactive && !today ? (
+        <button
+          type="button"
+          className="daily__dogear"
+          aria-label="Back to today"
+          onClick={() => {
+            const t = todayKey();
+            goToDate(t);
+            void prime(notebookId, t);
+          }}
+        />
+      ) : null}
     </article>
   );
 }
@@ -76,7 +106,12 @@ function StaticLines({ lines }: { lines: Line[] }) {
   return (
     <div className="ruled" aria-hidden="true">
       {written.map((l) => (
-        <div key={l.id} className={`ruled__row ruled__row--${l.kind}`}>
+        <div
+          key={l.id}
+          className={`ruled__row ruled__row--${l.kind}`}
+          data-indent={l.indent ?? 0}
+          data-rolls={Math.min(l.rolls ?? 0, NAG_CAP)}
+        >
           <span className="ruled__glyph">{GLYPH[l.kind]}</span>
           <span className="ruled__static">{l.text}</span>
         </div>

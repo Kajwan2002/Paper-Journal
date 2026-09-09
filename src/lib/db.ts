@@ -42,21 +42,27 @@ export function pageId(notebookId: string, date: DayKey): string {
   return `${notebookId}__${date}`;
 }
 
-/** Ensure there is at least one notebook and return the current shelf. */
-export async function ensureShelf(): Promise<Notebook[]> {
-  const existing = await db.notebooks.orderBy("order").toArray();
-  if (existing.length > 0) return existing;
-
-  const first: Notebook = {
-    id: crypto.randomUUID(),
-    title: "Journal",
-    cover: "oxblood",
-    paper: "cream-lined",
-    order: 0,
-    createdAt: Date.now(),
-  };
-  await db.notebooks.add(first);
-  return [first];
+/** Ensure there is at least one notebook and return the current shelf.
+ *  Memoised so a StrictMode double-mount can't create two "Journal"s. */
+let shelfPromise: Promise<Notebook[]> | null = null;
+export function ensureShelf(): Promise<Notebook[]> {
+  if (!shelfPromise) {
+    shelfPromise = db.transaction("rw", db.notebooks, async () => {
+      const existing = await db.notebooks.orderBy("order").toArray();
+      if (existing.length > 0) return existing;
+      const first: Notebook = {
+        id: crypto.randomUUID(),
+        title: "Journal",
+        cover: "oxblood",
+        paper: "cream-lined",
+        order: 0,
+        createdAt: Date.now(),
+      };
+      await db.notebooks.add(first);
+      return [first];
+    });
+  }
+  return shelfPromise;
 }
 
 export async function getPage(

@@ -91,6 +91,56 @@
 .ruled__row--migrated .ruled__static {
   color: var(--ink-soft);
 }
+.ruled__row--migrated .ruled__glyph {
+  color: var(--ink-faint);
+}
+
+/* one level of sub-item */
+.ruled__row[data-indent="1"] {
+  margin-left: 1.7rem;
+  border-bottom-color: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+.ruled__row[data-indent="1"] .ruled__glyph {
+  color: color-mix(in srgb, var(--ink-faint) 70%, transparent);
+  transform: scale(0.85);
+}
+
+/* a task that has been carried forward gets heavier the more it is nagged —
+   analog escalation, no badge */
+.ruled__row[data-rolls="1"] .ruled__input,
+.ruled__row[data-rolls="1"] .ruled__static,
+.ruled__row[data-rolls="1"] .ruled__glyph {
+  color: var(--ink);
+}
+.ruled__row[data-rolls="2"] .ruled__input,
+.ruled__row[data-rolls="2"] .ruled__static {
+  color: var(--ink);
+  font-weight: 500;
+}
+.ruled__row[data-rolls="2"] .ruled__glyph::after,
+.ruled__row[data-rolls="3"] .ruled__glyph::after,
+.ruled__row[data-rolls="4"] .ruled__glyph::after {
+  content: "›";
+  margin-left: -0.12em;
+}
+.ruled__row[data-rolls="3"] .ruled__input,
+.ruled__row[data-rolls="3"] .ruled__static,
+.ruled__row[data-rolls="4"] .ruled__input,
+.ruled__row[data-rolls="4"] .ruled__static {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--oxblood) 45%, transparent);
+  text-underline-offset: 3px;
+}
+.ruled__row[data-rolls="4"] .ruled__input,
+.ruled__row[data-rolls="4"] .ruled__static {
+  text-decoration-color: color-mix(in srgb, var(--oxblood) 75%, transparent);
+}
+.ruled__row[data-rolls="3"] .ruled__glyph,
+.ruled__row[data-rolls="4"] .ruled__glyph {
+  color: var(--oxblood);
+}
 
 .ruled__placeholder {
   position: absolute;
