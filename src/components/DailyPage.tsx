@@ -10,7 +10,7 @@ import {
 import { pageId } from "@/lib/db";
 import { getCached, prime, subscribe, writeLines } from "@/lib/pageStore";
 import type { Line } from "@/lib/rapidlog";
-import { GLYPH } from "@/lib/rapidlog";
+import { glyphFor, isStruck } from "@/lib/rapidlog";
 import { NAG_CAP } from "@/lib/rollover";
 import { useSession } from "@/state/session";
 import { useOverlay } from "@/state/overlay";
@@ -111,9 +111,11 @@ function StaticLines({ lines }: { lines: Line[] }) {
           className={`ruled__row ruled__row--${l.kind}`}
           data-indent={l.indent ?? 0}
           data-rolls={Math.min(l.rolls ?? 0, NAG_CAP)}
+          data-struck={isStruck(l) ? "1" : "0"}
         >
-          <span className="ruled__glyph">{GLYPH[l.kind]}</span>
+          <span className="ruled__glyph">{glyphFor(l)}</span>
           <span className="ruled__static">{l.text}</span>
+          <span className="ruled__strike" aria-hidden="true" />
         </div>
       ))}
     </div>

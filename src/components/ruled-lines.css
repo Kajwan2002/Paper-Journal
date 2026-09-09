@@ -5,12 +5,15 @@
 }
 
 .ruled__row {
+  position: relative;
   display: grid;
   grid-template-columns: 1.4rem minmax(0, 1fr);
   align-items: end;
   gap: 0.4rem;
   min-height: 2.05rem;
   border-bottom: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
+  background: var(--paper);
+  transition: box-shadow 0.16s ease;
 }
 
 .ruled__glyph {
@@ -34,7 +37,7 @@
 .ruled__input {
   border: 0;
   background: transparent;
-  padding: 0 0 0.28rem;
+  padding: 0 1.3rem 0.28rem 0;
   font-family: var(--serif);
   font-size: 1.02rem;
   line-height: 1.5;
@@ -57,7 +60,7 @@
 
 .ruled__static {
   display: block;
-  padding: 0 0 0.28rem;
+  padding: 0 1.3rem 0.28rem 0;
   font-family: var(--serif);
   font-size: 1.02rem;
   line-height: 1.5;
@@ -66,13 +69,71 @@
   min-height: 1.2em;
 }
 
-.ruled__row--done .ruled__input,
-.ruled__row--done .ruled__static {
-  color: var(--ink-faint);
-  text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, var(--ink-faint) 70%, transparent);
+/* the strike drawn across a crossed-out line */
+.ruled__strike {
+  position: absolute;
+  left: 1.8rem;
+  right: 1.5rem;
+  top: 52%;
+  height: 1.6px;
+  background: color-mix(in srgb, var(--ink-soft) 85%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.32s cubic-bezier(0.5, 0, 0.25, 1);
+  pointer-events: none;
 }
-.ruled__row--done .ruled__glyph,
+.ruled__row[data-struck="1"] .ruled__strike {
+  transform: scaleX(1);
+}
+.ruled__row[data-struck="1"] .ruled__input,
+.ruled__row[data-struck="1"] .ruled__static {
+  color: var(--ink-faint);
+  transition: color 0.32s ease;
+}
+.ruled__row[data-struck="1"] .ruled__glyph {
+  color: var(--oxblood);
+}
+
+/* drag-to-reorder grip */
+.ruled__grip {
+  position: absolute;
+  right: -0.1rem;
+  top: 0;
+  bottom: 0;
+  width: 1.4rem;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  opacity: 0;
+  touch-action: none;
+  cursor: grab;
+  transition: opacity 0.15s ease;
+}
+.ruled__row:hover .ruled__grip,
+.ruled__grip:focus-visible {
+  opacity: 0.55;
+}
+@media (pointer: coarse) {
+  .ruled__grip {
+    opacity: 0.4;
+  }
+}
+.ruled__row--drag {
+  z-index: 5;
+  cursor: grabbing;
+  box-shadow:
+    0 6px 16px -4px rgba(0, 0, 0, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  border-radius: 3px;
+}
+.ruled__row--drag .ruled__grip {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+/* per-kind treatment */
 .ruled__row--priority .ruled__glyph {
   color: var(--oxblood);
 }
@@ -105,8 +166,7 @@
   transform: scale(0.85);
 }
 
-/* a task that has been carried forward gets heavier the more it is nagged —
-   analog escalation, no badge */
+/* a carried-forward task gets heavier the more it is nagged — no badge */
 .ruled__row[data-rolls="1"] .ruled__input,
 .ruled__row[data-rolls="1"] .ruled__static,
 .ruled__row[data-rolls="1"] .ruled__glyph {
@@ -141,6 +201,12 @@
 .ruled__row[data-rolls="4"] .ruled__glyph {
   color: var(--oxblood);
 }
+/* a nagged line that gets crossed out drops the underline */
+.ruled__row[data-struck="1"] .ruled__input,
+.ruled__row[data-struck="1"] .ruled__static {
+  text-decoration: none;
+  font-weight: 400;
+}
 
 .ruled__placeholder {
   position: absolute;
@@ -152,4 +218,10 @@
   font-style: italic;
   color: var(--ink-faint);
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ruled__strike {
+    transition: none;
+  }
 }

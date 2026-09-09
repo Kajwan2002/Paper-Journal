@@ -5,7 +5,7 @@ import {
   weekday,
   type DayKey,
 } from "@/lib/date";
-import { GLYPH, type Line } from "@/lib/rapidlog";
+import { glyphFor, isStruck, type Line } from "@/lib/rapidlog";
 import { grainTile, mulberry32 } from "@/lib/noise";
 import { mix, type Palette } from "@/lib/theme";
 import type { PaperStyle } from "@/lib/db";
@@ -208,35 +208,36 @@ export function paintPage(o: PagePaint): void {
   written.forEach((line, i) => {
     const y = bodyTop + rowH * (i + 0.72);
     if (y > h - rowH * 0.5) return;
+    const struck = isStruck(line);
+    const lx = textX + (line.indent ? w * 0.045 : 0);
 
     ctx.fillStyle =
-      line.kind === "priority" || line.kind === "done"
+      struck || line.kind === "priority"
         ? pal.oxblood
         : line.kind === "event"
           ? pal.thread
           : pal.inkFaint;
     ctx.font = `400 ${w * 0.038}px ${MONO}`;
-    ctx.fillText(GLYPH[line.kind], glyphX, y);
+    ctx.fillText(glyphFor(line), glyphX, y);
 
-    const bold = line.kind === "priority" ? "600" : "400";
+    const bold = !struck && line.kind === "priority" ? "600" : "400";
     const italic = line.kind === "idea" ? "italic " : "";
     ctx.font = `${italic}${bold} ${w * 0.043}px ${SERIF}`;
-    ctx.fillStyle =
-      line.kind === "done"
-        ? pal.inkFaint
-        : line.kind === "migrated"
-          ? pal.inkSoft
-          : pal.ink;
-    const t = clipText(ctx, line.text.trim(), w * 0.94 - textX);
-    ctx.fillText(t, textX, y);
+    ctx.fillStyle = struck
+      ? pal.inkFaint
+      : line.kind === "migrated"
+        ? pal.inkSoft
+        : pal.ink;
+    const t = clipText(ctx, line.text.trim(), w * 0.94 - lx);
+    ctx.fillText(t, lx, y);
 
-    if (line.kind === "done") {
+    if (struck) {
       const tw = ctx.measureText(t).width;
-      ctx.strokeStyle = pal.inkFaint;
-      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = pal.inkSoft;
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.moveTo(textX, y - w * 0.013);
-      ctx.lineTo(textX + tw, y - w * 0.013);
+      ctx.moveTo(lx, y - w * 0.013);
+      ctx.lineTo(lx + tw, y - w * 0.013);
       ctx.stroke();
     }
   });

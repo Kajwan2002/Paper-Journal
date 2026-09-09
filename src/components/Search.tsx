@@ -8,7 +8,7 @@ import {
 import { db, type Page } from "@/lib/db";
 import { prime } from "@/lib/pageStore";
 import { isToday, longDate, type DayKey } from "@/lib/date";
-import { GLYPH, type Line } from "@/lib/rapidlog";
+import { glyphFor, type Line } from "@/lib/rapidlog";
 import { useSession } from "@/state/session";
 import "./search.css";
 
@@ -139,7 +139,7 @@ export function Search({ notebookId, onClose }: Props) {
                     </span>
                     <span className="search__line">
                       <span className="search__linemark">
-                        {GLYPH[h.line.kind]}
+                        {glyphFor(h.line)}
                       </span>
                       {highlight(h.line.text, query)}
                     </span>

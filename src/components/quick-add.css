@@ -1,0 +1,46 @@
+.qadd {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(0.7rem, env(safe-area-inset-bottom));
+  z-index: 55;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--desk-deep) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--emboss) 18%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.qadd__nib {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: color-mix(in srgb, var(--emboss) 72%, transparent);
+  border-radius: 999px;
+  transition:
+    color 0.14s ease,
+    background 0.14s ease,
+    transform 0.1s ease;
+}
+.qadd__nib:hover {
+  color: var(--emboss);
+  background: color-mix(in srgb, var(--paper) 12%, transparent);
+}
+.qadd__nib:active {
+  transform: scale(0.88);
+}
+.qadd__nib--priority {
+  color: color-mix(in srgb, var(--oxblood-bright) 78%, transparent);
+}
+.qadd__nib--event {
+  color: color-mix(in srgb, var(--thread) 82%, transparent);
+}
+.qadd__nib--idea {
+  font-style: italic;
+}
