@@ -1,0 +1,196 @@
+.book {
+  position: relative;
+  width: min(30rem, 88vw);
+  aspect-ratio: 40 / 52;
+  max-height: 84vh;
+  perspective: 1700px;
+  transform-style: preserve-3d;
+  --spine: 14px;
+}
+
+/* binding down the left edge */
+.book__spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--spine);
+  border-radius: 3px 0 0 3px;
+  background: linear-gradient(
+    90deg,
+    var(--leather-lo),
+    var(--leather) 55%,
+    rgba(0, 0, 0, 0.25) 100%
+  );
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+/* faux stack of page edges */
+.book__edges {
+  position: absolute;
+  inset: 0 0 0 var(--spine);
+  border-radius: var(--radius-page);
+  background: var(--paper-edge);
+  box-shadow:
+    2px 3px 0 -1px color-mix(in srgb, var(--paper-edge) 80%, #000 6%),
+    4px 6px 0 -2px color-mix(in srgb, var(--paper-edge) 70%, #000 10%),
+    6px 9px 0 -3px color-mix(in srgb, var(--paper-edge) 60%, #000 14%),
+    14px 22px 40px -18px rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+.book__well {
+  position: absolute;
+  inset: 0 0 0 var(--spine);
+  transform-style: preserve-3d;
+  z-index: 2;
+}
+
+.book__leaf {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  border-radius: var(--radius-page);
+}
+
+.book__leaf--base {
+  overflow: hidden;
+  box-shadow: inset 22px 0 34px -30px rgba(0, 0, 0, 0.4);
+}
+
+.book__leaf--turning {
+  z-index: 3;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  will-change: transform;
+  backface-visibility: visible;
+}
+.book__leaf--turning[data-dir="next"] {
+  animation: leaf-next 0.52s var(--ease-turn) forwards;
+}
+.book__leaf--turning[data-dir="prev"] {
+  animation: leaf-prev 0.52s var(--ease-turn) forwards;
+}
+@keyframes leaf-next {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(-168deg);
+  }
+}
+@keyframes leaf-prev {
+  from {
+    transform: rotateY(-168deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+.book__face {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-page);
+  overflow: hidden;
+  backface-visibility: hidden;
+  background: var(--paper);
+}
+
+.book__face--front {
+  box-shadow: inset 22px 0 34px -30px rgba(0, 0, 0, 0.4);
+}
+
+.book__face--back {
+  transform: rotateY(180deg);
+  background:
+    linear-gradient(
+      270deg,
+      var(--paper) 82%,
+      color-mix(in srgb, var(--paper) 80%, #000 8%) 100%
+    );
+}
+
+.book__curl {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: var(--radius-page);
+  background: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.28) 0%,
+    rgba(0, 0, 0, 0) 22%,
+    rgba(255, 255, 255, 0.12) 42%,
+    rgba(0, 0, 0, 0) 62%,
+    rgba(0, 0, 0, 0.22) 100%
+  );
+  animation: book-curl 0.52s var(--ease-turn);
+}
+@keyframes book-curl {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.5;
+  }
+}
+
+/* page-turn grab zones */
+.book__edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: max(14%, 46px);
+  z-index: 6;
+  cursor: pointer;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.book__edge--prev {
+  left: 0;
+}
+.book__edge--next {
+  right: 0;
+}
+
+.book__coverdrag {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  cursor: pointer;
+  touch-action: pan-y;
+  border-radius: var(--radius-page);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ribbon bookmark — tap to close */
+.book__close {
+  position: absolute;
+  top: -14px;
+  right: 1.1rem;
+  width: 13px;
+  height: 26%;
+  z-index: 20;
+  filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.35));
+}
+.book__ribbon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--oxblood-bright),
+    var(--oxblood) 60%,
+    color-mix(in srgb, var(--oxblood) 70%, #000) 100%
+  );
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book__leaf--turning {
+    will-change: auto;
+  }
+}

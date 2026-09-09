@@ -1,0 +1,89 @@
+import Dexie, { type EntityTable } from "dexie";
+import type { Line } from "@/lib/rapidlog";
+import type { DayKey } from "@/lib/date";
+
+/** Local-first store. Everything lives on the device; a sync layer
+ *  (CRDT + end-to-end encryption) slots in on top of this later. */
+
+export type CoverStyle = "oxblood" | "tan" | "forest" | "black-cloth";
+export type PaperStyle = "cream-lined" | "dot-grid" | "blank";
+
+export interface Notebook {
+  id: string;
+  title: string;
+  cover: CoverStyle;
+  paper: PaperStyle;
+  order: number;
+  createdAt: number;
+}
+
+export interface Page {
+  /** `${notebookId}__${date}` */
+  id: string;
+  notebookId: string;
+  date: DayKey;
+  lines: Line[];
+  updatedAt: number;
+}
+
+const db = new Dexie("marginalia") as Dexie & {
+  notebooks: EntityTable<Notebook, "id">;
+  pages: EntityTable<Page, "id">;
+};
+
+db.version(1).stores({
+  notebooks: "id, order, createdAt",
+  pages: "id, notebookId, date, [notebookId+date], updatedAt",
+});
+
+export { db };
+
+export function pageId(notebookId: string, date: DayKey): string {
+  return `${notebookId}__${date}`;
+}
+
+/** Ensure there is at least one notebook and return the current shelf. */
+export async function ensureShelf(): Promise<Notebook[]> {
+  const existing = await db.notebooks.orderBy("order").toArray();
+  if (existing.length > 0) return existing;
+
+  const first: Notebook = {
+    id: crypto.randomUUID(),
+    title: "Journal",
+    cover: "oxblood",
+    paper: "cream-lined",
+    order: 0,
+    createdAt: Date.now(),
+  };
+  await db.notebooks.add(first);
+  return [first];
+}
+
+export async function getPage(
+  notebookId: string,
+  date: DayKey,
+): Promise<Page | undefined> {
+  return db.pages.get(pageId(notebookId, date));
+}
+
+export async function savePage(
+  notebookId: string,
+  date: DayKey,
+  lines: Line[],
+): Promise<void> {
+  const id = pageId(notebookId, date);
+  const nonEmpty = lines.filter((l) => l.text.trim().length > 0);
+
+  if (nonEmpty.length === 0) {
+    await db.pages.delete(id);
+    return;
+  }
+
+  await db.pages.put({
+    id,
+    notebookId,
+    date,
+    lines: nonEmpty,
+    updatedAt: Date.now(),
+  });
+}

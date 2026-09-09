@@ -1,0 +1,553 @@
+<title>Marginalia</title>
+<meta name="description" content="Design brief for a leather-journal planner synced across iPhone, iPad, and PC." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+<style>
+  :root {
+    --desk: #b9ad92;
+    --desk-edge: #a8997c;
+    --paper: #f0eee4;
+    --paper-shade: #e6e2d3;
+    --ink: #24262d;
+    --ink-soft: #5c5c53;
+    --ink-faint: #8a897c;
+    --oxblood: #7a2e38;
+    --oxblood-bright: #8f3a45;
+    --brass: #8f7145;
+    --thread: #3c5a44;
+    --rule: #b8544e;
+
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --display: "Fraunces", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --measure: 40rem;
+    --margin-rule: 3.25rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --desk: #14110d;
+      --desk-edge: #221d16;
+      --paper: #211d18;
+      --paper-shade: #191510;
+      --ink: #e8e2d3;
+      --ink-soft: #aba38d;
+      --ink-faint: #7d7768;
+      --oxblood: #c76e77;
+      --oxblood-bright: #d98790;
+      --brass: #b18a56;
+      --thread: #83a88c;
+      --rule: #a85852;
+    }
+  }
+  :root[data-theme="dark"] {
+    --desk: #14110d;
+    --desk-edge: #221d16;
+    --paper: #211d18;
+    --paper-shade: #191510;
+    --ink: #e8e2d3;
+    --ink-soft: #aba38d;
+    --ink-faint: #7d7768;
+    --oxblood: #c76e77;
+    --oxblood-bright: #d98790;
+    --brass: #b18a56;
+    --thread: #83a88c;
+    --rule: #a85852;
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    background-color: var(--desk);
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(255,255,255,0.05), transparent 60%),
+      radial-gradient(ellipse at 100% 100%, rgba(0,0,0,0.14), transparent 55%);
+  }
+
+  body {
+    margin: 0 auto;
+    max-width: calc(var(--measure) + 8rem);
+    background-color: var(--paper);
+    border-left: 6px solid var(--oxblood);
+    border-right: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 18px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 140px -60px rgba(0,0,0,0.55);
+    z-index: 5;
+  }
+
+  .wrap {
+    padding: clamp(2rem, 5vw, 4rem) clamp(1.1rem, 4vw, 3rem) clamp(2rem, 5vw, 3.5rem);
+  }
+
+  .book { position: relative; }
+
+  .page {
+    margin-left: 2.4rem;
+    border-left: 1px solid color-mix(in srgb, var(--rule) 65%, transparent);
+    padding-left: 1.3rem;
+  }
+  @media (max-width: 620px) {
+    .page { margin-left: 0.9rem; padding-left: 0.9rem; }
+    body { font-size: 17px; }
+    .wrap { padding-left: 0.8rem; padding-right: 0.8rem; }
+  }
+
+  /* ---- header ---- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin: 0 0 1.4rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-variation-settings: "SOFT" 40, "WONK" 1;
+    font-size: clamp(3rem, 11vw, 5.2rem);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .tagline {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(1.15rem, 3.4vw, 1.5rem);
+    color: var(--ink-soft);
+    margin: 1rem 0 0;
+    max-width: 32ch;
+    text-wrap: balance;
+  }
+  .meta {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, var(--brass) 45%, transparent);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.6rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .meta b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ---- structure ---- */
+  section { margin-top: clamp(2.6rem, 6vw, 4rem); }
+  .snum {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    color: var(--brass);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  h2 {
+    font-family: var(--display);
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-variation-settings: "SOFT" 30;
+    font-size: clamp(1.7rem, 5vw, 2.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin: 0 0 0.4rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 1.12rem;
+    margin: 1.8rem 0 0.3rem;
+    color: var(--ink);
+  }
+  .lede { color: var(--ink-soft); margin: 0 0 1.4rem; max-width: var(--measure); }
+  p { max-width: var(--measure); }
+  p, li { text-wrap: pretty; }
+  a { color: var(--oxblood-bright); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--oxblood-bright); outline-offset: 3px; border-radius: 2px; }
+
+  .divider {
+    border: 0;
+    height: 1px;
+    max-width: var(--measure);
+    margin: 2.4rem 0 0;
+    background: repeating-linear-gradient(90deg, var(--brass) 0 6px, transparent 6px 12px);
+    opacity: 0.5;
+  }
+
+  /* ---- contents ---- */
+  .contents {
+    margin-top: 2.4rem;
+    max-width: var(--measure);
+  }
+  .contents ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  .contents li {
+    counter-increment: toc;
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
+  }
+  .contents li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--brass);
+  }
+  .contents a { text-decoration: none; color: var(--ink); flex: 1; }
+  .contents a:hover { color: var(--oxblood-bright); text-decoration: underline; }
+  .contents .pg { font-family: var(--mono); font-size: 0.75rem; color: var(--ink-faint); }
+
+  /* ---- rapid-logging key ---- */
+  .key {
+    max-width: var(--measure);
+    margin: 1.4rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: 0.35rem 1.4rem;
+    padding: 1.1rem 1.3rem;
+    background: var(--paper-shade);
+    border-radius: 4px;
+  }
+  .key div { display: flex; gap: 0.7rem; align-items: baseline; font-size: 0.92rem; }
+  .key .g {
+    font-family: var(--mono);
+    color: var(--oxblood);
+    width: 1.1rem;
+    text-align: center;
+    flex: none;
+    font-weight: 500;
+  }
+  .key span:last-child { color: var(--ink-soft); }
+
+  /* ---- feature lists ---- */
+  .feat { list-style: none; margin: 0.8rem 0 0; padding: 0; max-width: var(--measure); }
+  .feat > li {
+    display: grid;
+    grid-template-columns: 1.3rem 1fr;
+    gap: 0.2rem 0.7rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--brass) 22%, transparent);
+  }
+  .feat > li::before {
+    content: "•";
+    font-family: var(--mono);
+    color: var(--oxblood);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  .feat li.ev::before { content: "○"; }
+  .feat li.idea::before { content: "*"; color: var(--brass); }
+  .feat li.mig::before { content: "›"; }
+  .feat .ft { font-weight: 600; color: var(--ink); grid-column: 2; }
+  .feat .fd { grid-column: 2; color: var(--ink-soft); font-size: 0.96rem; margin: 0.1rem 0 0; }
+
+  .cut { list-style: none; margin: 0.8rem 0 0; padding: 0; max-width: var(--measure); }
+  .cut li {
+    display: flex; gap: 0.7rem; align-items: baseline;
+    padding: 0.35rem 0; color: var(--ink-faint);
+  }
+  .cut li::before { content: "—"; font-family: var(--mono); color: var(--rule); flex: none; }
+  .cut b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ---- material swatches ---- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 0.9rem; max-width: var(--measure); margin: 1.2rem 0 0; }
+  .sw { border-radius: 4px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+  .sw .chip { height: 3.2rem; }
+  .sw .lab { padding: 0.45rem 0.6rem; font-family: var(--mono); font-size: 0.68rem; color: var(--ink-soft); background: var(--paper-shade); }
+  .sw .lab b { display: block; color: var(--ink); font-size: 0.74rem; letter-spacing: 0.02em; }
+
+  /* ---- callout ---- */
+  .note {
+    max-width: var(--measure);
+    margin: 1.6rem 0 0;
+    padding: 0.2rem 0 0.2rem 1.1rem;
+    border-left: 3px solid var(--brass);
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .note b { font-style: normal; color: var(--ink); }
+
+  /* ---- decision table ---- */
+  .tablewrap { overflow-x: auto; max-width: var(--measure); margin: 1.2rem 0 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+  th, td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid color-mix(in srgb, var(--brass) 30%, transparent); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--brass); font-weight: 500; }
+  td b { color: var(--ink); }
+  .pick td { background: color-mix(in srgb, var(--thread) 12%, transparent); }
+  .pick td:first-child b::after { content: " ✓"; color: var(--thread); }
+
+  .qs { list-style: none; margin: 1rem 0 0; padding: 0; max-width: var(--measure); counter-reset: q; }
+  .qs li { counter-increment: q; display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.7rem; padding: 0.6rem 0; border-bottom: 1px solid color-mix(in srgb, var(--brass) 22%, transparent); }
+  .qs li::before { content: "Q" counter(q); font-family: var(--mono); font-size: 0.72rem; color: var(--oxblood); padding-top: 0.15rem; }
+
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid color-mix(in srgb, var(--brass) 45%, transparent);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .contents a, a { transition: color 0.15s ease; }
+  }
+</style>
+
+<div class="wrap">
+  <article class="book">
+    <div class="page">
+
+      <header>
+        <p class="eyebrow">Working name &nbsp;/&nbsp; Design brief</p>
+        <h1>Marginalia</h1>
+        <p class="tagline">A planner that looks like a leather journal and thinks like a very organised assistant.</p>
+        <div class="meta">
+          <span><b>Draft</b> v0.1</span>
+          <span><b>Date</b> 09 Sep 2026</span>
+          <span><b>Surfaces</b> iPhone · iPad · PC</span>
+          <span><b>Primary input</b> Typing</span>
+        </div>
+      </header>
+
+      <nav class="contents" aria-label="Contents">
+        <ol>
+          <li><a href="#principle">The one principle</a><span class="pg">p.1</span></li>
+          <li><a href="#features">Feature set — three tiers</a><span class="pg">p.2</span></li>
+          <li><a href="#notebooks">The notebooks model</a><span class="pg">p.5</span></li>
+          <li><a href="#assistant">The margin assistant</a><span class="pg">p.6</span></li>
+          <li><a href="#material">Themes &amp; materials</a><span class="pg">p.7</span></li>
+          <li><a href="#ui">UI &amp; interaction</a><span class="pg">p.8</span></li>
+          <li><a href="#sync">Devices &amp; sync</a><span class="pg">p.9</span></li>
+          <li><a href="#open">Open decisions</a><span class="pg">p.10</span></li>
+        </ol>
+      </nav>
+
+      <section id="principle">
+        <span class="snum">§ 01</span>
+        <h2>The one principle</h2>
+        <p class="lede">Everything else is downstream of this sentence.</p>
+        <p><b>The page always looks analog. The intelligence lives in the margins, the transitions, and the things that happen while you're not looking.</b></p>
+        <p>A leather notebook can't search itself, can't nudge you, can't carry an unfinished task to tomorrow. Those are the only reasons to build this as software. But the smart parts should feel like the notebook quietly did them for you — never like an app was bolted onto a photo of paper.</p>
+        <p>The test for any feature: if it needs a settings-heavy panel, a modal stack, or a notification-center feel, it probably breaks the illusion and should be cut or hidden.</p>
+
+        <h3>The rapid-logging key</h3>
+        <p>Borrowed from bullet journalling and used as the visual grammar throughout the app — you type these at the start of a line and the page understands them.</p>
+        <div class="key">
+          <div><span class="g">•</span><span>task</span></div>
+          <div><span class="g">×</span><span>done</span></div>
+          <div><span class="g">›</span><span>moved to another day</span></div>
+          <div><span class="g">&lt;</span><span>scheduled / calendar</span></div>
+          <div><span class="g">○</span><span>event</span></div>
+          <div><span class="g">–</span><span>note</span></div>
+          <div><span class="g">*</span><span>priority</span></div>
+          <div><span class="g">~</span><span>idea / someday</span></div>
+        </div>
+      </section>
+
+      <hr class="divider" />
+
+      <section id="features">
+        <span class="snum">§ 02</span>
+        <h2>Feature set — three tiers</h2>
+        <p class="lede">Ranked by priority, because the ranking is real: Tier 1 is the product, Tier 2 makes it a planner, Tier 3 is the part you can live without.</p>
+
+        <h3>Tier 1 — the core loop</h3>
+        <ul class="feat">
+          <li><span class="ft">The daily page</span><p class="fd">Home screen. Pre-printed date header and page number, a morning-intentions block at the top, open space, an evening-reflection prompt at the bottom. Modelled on the Hobonichi Techo one-page-a-day rhythm.</p></li>
+          <li><span class="ft">Natural-language capture</span><p class="fd">Type "gym mon/wed/fri 7am" or "call mum sunday" and it silently becomes a recurring block or a reminder — still shown as your text on the line, with a hairline underline marking it as "live."</p></li>
+          <li class="mig"><span class="ft">Task rollover (migration)</span><p class="fd">An unchecked task draws a "›" and reappears on tomorrow's page. You can see the drift — something that's rolled five times looks nagged, on purpose.</p></li>
+          <li class="ev"><span class="ft">Real calendar, handwritten</span><p class="fd">Two-way sync with Google, iCloud and Outlook over CalDAV. Appointments appear as ink on a margin timeline, not as blocks in a grid.</p></li>
+          <li><span class="ft">Search across every page</span><p class="fd">The one thing paper fundamentally can't do. A magnifying-glass ribbon; results shown as page-corner peeks you flip straight to.</p></li>
+        </ul>
+
+        <h3>Tier 2 — the planning layer</h3>
+        <ul class="feat">
+          <li><span class="ft">Weekly &amp; monthly spreads</span><p class="fd">Auto-populated from daily pages and the calendar, but still hand-editable — drop a note in a corner, cross a day out.</p></li>
+          <li><span class="ft">Margin-rail time-blocking</span><p class="fd">Drag a task onto the day's vertical timeline to give it a slot. The rail is the same one the calendar draws on.</p></li>
+          <li class="ev"><span class="ft">Habit &amp; mood grid</span><p class="fd">A monthly dot grid you fill in by tapping. Trends surface quietly — a faint trend line, a margin note at month's end.</p></li>
+          <li><span class="ft">Collections</span><p class="fd">Tag a line with a symbol and a named collection assembles itself across pages — a project, a trip, a reading list. This is the Leuchtturm index, made automatic.</p></li>
+          <li class="ev"><span class="ft">On this day</span><p class="fd">A ribbon that opens to what you wrote a month or a year ago today.</p></li>
+        </ul>
+
+        <h3>Tier 3 — gentle intelligence</h3>
+        <ul class="feat">
+          <li class="idea"><span class="ft">End-of-week reflection</span><p class="fd">A short note in the week's margin: "You moved 'taxes' four times this week." Observational, not prescriptive.</p></li>
+          <li class="idea"><span class="ft">Prompts on blank days</span><p class="fd">A faint pencil line of a question when a page has been left empty and it's late.</p></li>
+          <li class="idea"><span class="ft">Draft my week</span><p class="fd">Proposes a plan from your open tasks and calendar; you accept it by editing it, line by line.</p></li>
+        </ul>
+
+        <h3>Deliberately out of scope</h3>
+        <p>To protect the feel, these are not coming — at least not in v1.</p>
+        <ul class="cut">
+          <li><b>Collaboration / shared notebooks.</b> A journal is a single-author object.</li>
+          <li><b>Project-management boards.</b> No Kanban, no Gantt, no assignees.</li>
+          <li><b>A notification firehose.</b> At most one gentle daily nudge.</li>
+          <li><b>Infinite nested folders.</b> Notebooks and collections, nothing deeper.</li>
+          <li><b>Rich media walls.</b> Images allowed, sparingly, pasted like a taped-in photo.</li>
+        </ul>
+      </section>
+
+      <hr class="divider" />
+
+      <section id="notebooks">
+        <span class="snum">§ 03</span>
+        <h2>The notebooks model</h2>
+        <p class="lede">One book is the default. More are a choice, not a filing system.</p>
+        <p>You open the app to a <b>shelf</b> — a short row of spines. Most people keep one ("Journal"). Others separate a few streams: <span style="font-style:italic">Journal</span>, <span style="font-style:italic">Work</span>, <span style="font-style:italic">Japan trip</span>.</p>
+        <ul class="feat">
+          <li><span class="ft">Each notebook has its own cover, paper and ribbons</span><p class="fd">A work notebook can be plain black cloth with graph paper; the journal, oxblood leather with cream lined pages.</p></li>
+          <li><span class="ft">The daily page can span notebooks or stay separate</span><p class="fd">A setting: "one shared today across all books" vs. "each book keeps its own days." Default is shared — you live one life.</p></li>
+          <li class="ev"><span class="ft">Calendar and search are global</span><p class="fd">They reach across the whole shelf. Collections stay inside their notebook unless you pin one to the shelf.</p></li>
+          <li class="idea"><span class="ft">Archiving a full notebook</span><p class="fd">When a book "fills up" (a soft page count, ~250 spreads) it can be closed and shelved — still searchable, no longer written in. A new volume opens: "Journal, Vol. 4."</p></li>
+        </ul>
+      </section>
+
+      <hr class="divider" />
+
+      <section id="assistant">
+        <span class="snum">§ 04</span>
+        <h2>The margin assistant</h2>
+        <p class="lede">You said you're open to it being visible. Here's a shape that stays in character.</p>
+        <p>It's not a chat bubble and not a robot. It's a <b>pencil in the margin</b> — a thin gutter on the right edge of the page where the app writes back to you in a lighter hand. You can write to it there too.</p>
+        <ul class="feat">
+          <li><span class="ft">Ambient mode (default)</span><p class="fd">It only writes unprompted for a few things: a rolled-too-many-times task, a scheduling clash, the weekly note. Everything it adds is erasable with one swipe.</p></li>
+          <li><span class="ft">Ask it directly</span><p class="fd">Tap the margin and type: "when am I free for 2 hours this week?" / "pull every line tagged #book into a list." It answers in the margin, or lays the result onto a fresh page.</p></li>
+          <li class="ev"><span class="ft">It drafts, you ink</span><p class="fd">Anything it proposes appears in pencil-grey. It doesn't become "real" (dark ink) until you tap it. Nothing the assistant does is silent or final.</p></li>
+          <li class="idea"><span class="ft">A dial, not a switch</span><p class="fd">One control in settings — Off · Ambient · Active — rather than twenty toggles.</p></li>
+        </ul>
+        <p class="note"><b>Privacy stance:</b> journalling content is the most sensitive data a person owns. Assistant requests should be scoped to what you ask about, and the setting should make clear what leaves the device and what doesn't.</p>
+      </section>
+
+      <hr class="divider" />
+
+      <section id="material">
+        <span class="snum">§ 05</span>
+        <h2>Themes &amp; materials</h2>
+        <p class="lede">Set per notebook, never one global skin. The palette below is this brief's own — a starting point, not a spec.</p>
+
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#f0eee4"></div><div class="lab"><b>Aged paper</b>#F0EEE4</div></div>
+          <div class="sw"><div class="chip" style="background:#24262d"></div><div class="lab"><b>Ink blue-black</b>#24262D</div></div>
+          <div class="sw"><div class="chip" style="background:#7a2e38"></div><div class="lab"><b>Oxblood</b>#7A2E38</div></div>
+          <div class="sw"><div class="chip" style="background:#8f7145"></div><div class="lab"><b>Brass / gilding</b>#8F7145</div></div>
+          <div class="sw"><div class="chip" style="background:#3c5a44"></div><div class="lab"><b>Thread green</b>#3C5A44</div></div>
+          <div class="sw"><div class="chip" style="background:#b8544e"></div><div class="lab"><b>Margin rule</b>#B8544E</div></div>
+        </div>
+
+        <h3>Covers</h3>
+        <p>Leather colourways — oxblood, tan, cognac, forest, black — plus cloth and linen. One "worn-in" option that ages with use: the corners soften, the spine creases where you hold it.</p>
+        <h3>Paper stock</h3>
+        <p>Cream lined, white dot-grid, blank, graph, and a thin Tomoe-River-style sheet where ink shows through faintly from the previous page. Chosen per notebook.</p>
+        <h3>Ink &amp; tools</h3>
+        <p>Fountain pen, ballpoint, pencil, felt-tip. Affects stroke weight and how your typed text is rendered — a chosen hand or a clean book serif.</p>
+        <h3>Ribbons, bands &amp; edges</h3>
+        <p>Bookmark ribbon colours, an elastic closure that actually stretches shut, optional gilded page edges that catch the light.</p>
+        <h3>Ambient</h3>
+        <p>The cover picks up light based on time of day and weather. Subtle, and switchable off.</p>
+      </section>
+
+      <hr class="divider" />
+
+      <section id="ui">
+        <span class="snum">§ 06</span>
+        <h2>UI &amp; interaction</h2>
+        <ul class="feat">
+          <li><span class="ft">Open the cover to enter</span><p class="fd">Close the elastic band to leave — which auto-saves. No "save" button anywhere.</p></li>
+          <li><span class="ft">Page flip follows your finger</span><p class="fd">Weight and physics in the turn, a soft paper sound you can mute. Fast double-flip to riffle through a range; ribbons to jump instantly.</p></li>
+          <li class="ev"><span class="ft">Typing is first-class on every device</span><p class="fd">Your text renders in the notebook's chosen hand. On iPad, a keyboard case feels native; the Pencil is a later addition, not a v1 requirement.</p></li>
+          <li><span class="ft">Everything a real notebook pre-prints, this one does too</span><p class="fd">Page numbers, an index at the front, date stamps, month tabs. The structure should feel manufactured, not generated.</p></li>
+          <li class="ev"><span class="ft">The margin rule is load-bearing</span><p class="fd">That red vertical line is where the calendar timeline, time-blocks and the assistant all live. It's the app's one piece of chrome.</p></li>
+        </ul>
+        <p class="note">Motion budget is small on purpose. The page turn is the one rich animation. Everything else — checking a task, filing a collection — is quick and quiet, so the flip stays special.</p>
+      </section>
+
+      <hr class="divider" />
+
+      <section id="sync">
+        <span class="snum">§ 07</span>
+        <h2>Devices &amp; sync</h2>
+        <p class="lede">iPhone, iPad and PC, all in step. This choice shapes the whole codebase, so it's worth settling early.</p>
+
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Approach</th><th>Why it fits</th><th>Cost</th></tr>
+            </thead>
+            <tbody>
+              <tr class="pick">
+                <td><b>Flutter</b></td>
+                <td>One codebase for iOS, iPadOS and Windows. Full control of custom rendering and page physics. Real desktop support, not an afterthought.</td>
+                <td>Custom text editing is fiddly; smaller hiring pool.</td>
+              </tr>
+              <tr>
+                <td><b>Web core + wrappers</b></td>
+                <td>Canvas/WebGL page engine, then Capacitor for iOS and Tauri for Windows. Fastest to a prototype; one language.</td>
+                <td>Buttery 60fps page physics is harder to guarantee across old devices.</td>
+              </tr>
+              <tr>
+                <td><b>Native + separate PC app</b></td>
+                <td>SwiftUI gives the best possible feel on Apple hardware.</td>
+                <td>You build the Windows app twice-over and still need a sync layer.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Sync &amp; storage</h3>
+        <ul class="feat">
+          <li><span class="ft">Local-first, with CRDTs</span><p class="fd">Every device holds the whole notebook and works fully offline. Edits merge without conflicts (Automerge or Yjs). Opening a page is instant because it's already there.</p></li>
+          <li class="ev"><span class="ft">A thin sync relay</span><p class="fd">A small server (or iCloud plus a relay for Windows) just passes encrypted change-sets between your devices. It never needs to understand them.</p></li>
+          <li><span class="ft">End-to-end encryption, non-negotiable</span><p class="fd">The relay stores ciphertext. Losing all devices means a recovery key, kept by you. Nobody operating the service can read a page.</p></li>
+          <li class="idea"><span class="ft">Export is a first-class feature</span><p class="fd">A notebook can be dumped to PDF (as spreads) and to plain Markdown, any time. Your writing is never trapped.</p></li>
+        </ul>
+      </section>
+
+      <hr class="divider" />
+
+      <section id="open">
+        <span class="snum">§ 08</span>
+        <h2>Open decisions</h2>
+        <p class="lede">What to settle next, roughly in order.</p>
+        <ol class="qs">
+          <li>How visible is the assistant, exactly — is the right-margin "pencil" the model, or something even quieter?</li>
+          <li>Shared daily page across all notebooks, or one per book? (Brief assumes shared.)</li>
+          <li>Flutter vs. web-core — worth a weekend prototype of the page-flip in each before committing?</li>
+          <li>What's the v1 platform cut? All three at launch, or iPhone + PC first and iPad close behind?</li>
+          <li>Is there a subscription (for the sync relay + assistant), a one-time price, or both?</li>
+          <li>Handwriting / Apple Pencil — explicitly v2, or a small v1 nod?</li>
+          <li>Name: keep <span style="font-style:italic">Marginalia</span>, or keep brainstorming?</li>
+        </ol>
+      </section>
+
+      <footer>
+        <span>Marginalia · design brief</span>
+        <span>v0.1 · living document</span>
+      </footer>
+
+    </div>
+  </article>
+</div>

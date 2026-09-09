@@ -1,0 +1,101 @@
+.ruled {
+  position: relative;
+  --row-h: 2.05rem;
+}
+
+.ruled__row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  align-items: end;
+  gap: 0.4rem;
+  min-height: var(--row-h);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.ruled__glyph {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: var(--row-h);
+  text-align: center;
+  color: var(--ink-faint);
+  align-self: stretch;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.ruled__glyph:hover {
+  color: var(--oxblood);
+}
+.ruled__glyph:active {
+  transform: scale(0.85);
+}
+
+.ruled__input {
+  border: 0;
+  background: transparent;
+  padding: 0 0 0.28rem;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--ink);
+  width: 100%;
+  outline: none;
+  caret-color: var(--oxblood);
+}
+.ruled__input:focus,
+.ruled__input:focus-visible {
+  outline: none;
+}
+/* a written page shows a faint ink-underline where the cursor sits */
+.ruled__row:focus-within {
+  border-bottom-color: color-mix(in srgb, var(--oxblood) 45%, transparent);
+}
+.ruled__input::placeholder {
+  color: var(--ink-faint);
+}
+
+.ruled__static {
+  display: block;
+  padding: 0 0 0.28rem;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+  min-height: 1.2em;
+}
+
+/* kind styling */
+.ruled__row--done .ruled__input {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--ink-faint) 70%, transparent);
+}
+.ruled__row--done .ruled__glyph {
+  color: var(--oxblood);
+}
+.ruled__row--priority .ruled__glyph {
+  color: var(--oxblood);
+}
+.ruled__row--priority .ruled__input {
+  font-weight: 600;
+}
+.ruled__row--event .ruled__glyph {
+  color: var(--thread);
+}
+.ruled__row--idea .ruled__input {
+  font-style: italic;
+}
+.ruled__row--migrated .ruled__input {
+  color: var(--ink-soft);
+}
+
+.ruled__placeholder {
+  position: absolute;
+  top: 0;
+  left: 1.9rem;
+  right: 0;
+  margin: 0;
+  line-height: var(--row-h);
+  font-style: italic;
+  color: var(--ink-faint);
+  pointer-events: none;
+}

@@ -1,0 +1,88 @@
+/* Marginalia design tokens — ported from the design brief.
+   Light = the notebook open on a daytime desk.
+   Dark  = the same notebook by lamplight. */
+
+:root {
+  /* surfaces */
+  --desk: #b9ad92;
+  --desk-deep: #a2977c;
+  --paper: #f2f0e6;
+  --paper-edge: #e4e0cf;
+  --paper-shade: #e8e4d4;
+
+  /* ink */
+  --ink: #23262d;
+  --ink-soft: #585952;
+  --ink-faint: #8b8a7c;
+
+  /* accents */
+  --oxblood: #7a2e38;
+  --oxblood-bright: #8f3a45;
+  --brass: #8f7145;
+  --thread: #3c5a44;
+  --rule: #b8544e;
+
+  /* leather (cover) */
+  --leather: #5a2a2f;
+  --leather-hi: #7c3c40;
+  --leather-lo: #3f1c20;
+  --emboss: #d9b98c;
+
+  /* type */
+  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* metrics */
+  --page-max: 30rem;
+  --radius-page: 3px 10px 10px 3px;
+  --ease-turn: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk: #171310;
+    --desk-deep: #100c0a;
+    --paper: #2b2620;
+    --paper-edge: #1c1813;
+    --paper-shade: #221d17;
+
+    --ink: #e9e3d4;
+    --ink-soft: #ada592;
+    --ink-faint: #7d7768;
+
+    --oxblood: #c76e77;
+    --oxblood-bright: #db8891;
+    --brass: #b18a56;
+    --thread: #84a98d;
+    --rule: #a85852;
+
+    --leather: #3f1e22;
+    --leather-hi: #5a2c30;
+    --leather-lo: #26100f;
+    --emboss: #c7a274;
+  }
+}
+
+:root[data-theme="dark"] {
+  --desk: #171310;
+  --desk-deep: #100c0a;
+  --paper: #2b2620;
+  --paper-edge: #1c1813;
+  --paper-shade: #221d17;
+
+  --ink: #e9e3d4;
+  --ink-soft: #ada592;
+  --ink-faint: #7d7768;
+
+  --oxblood: #c76e77;
+  --oxblood-bright: #db8891;
+  --brass: #b18a56;
+  --thread: #84a98d;
+  --rule: #a85852;
+
+  --leather: #3f1e22;
+  --leather-hi: #5a2c30;
+  --leather-lo: #26100f;
+  --emboss: #c7a274;
+}
