@@ -65,15 +65,13 @@ export function MonthJump({ notebookId, anchorDate, onClose }: Props) {
   return (
     <div
       className="mjump__scrim"
-      onPointerDownCapture={(e) => e.stopPropagation()}
-      onClick={onClose}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div
-        className="mjump"
-        role="dialog"
-        aria-label="Jump to a day"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="mjump" role="dialog" aria-label="Jump to a day">
+
         <div className="mjump__head">
           <button
             type="button"

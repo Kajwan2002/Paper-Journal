@@ -40,7 +40,16 @@ export function Search({ notebookId, onClose }: Props) {
 
   useEffect(() => {
     fieldRef.current?.focus();
-  }, []);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
 
   const hits = useMemo<Hit[]>(() => {
     if (!pages || query.length < 2) return [];
@@ -83,10 +92,12 @@ export function Search({ notebookId, onClose }: Props) {
   return (
     <div
       className="search__scrim"
-      onPointerDownCapture={(e) => e.stopPropagation()}
-      onClick={onClose}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="search" onClick={(e) => e.stopPropagation()} onKeyDown={onKey}>
+      <div className="search" onKeyDown={onKey}>
         <div className="search__bar">
           <span className="search__glyph" aria-hidden="true">
             ⌕
@@ -100,6 +111,14 @@ export function Search({ notebookId, onClose }: Props) {
             autoComplete="off"
             onChange={(e) => setQ(e.target.value)}
           />
+          <button
+            type="button"
+            className="search__close"
+            aria-label="Close search"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
 
         {query.length >= 2 ? (
