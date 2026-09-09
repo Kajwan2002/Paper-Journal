@@ -31,6 +31,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const leafRef = useRef<HTMLDivElement | null>(null);
   const curlRef = useRef<HTMLDivElement | null>(null);
+  const castRef = useRef<HTMLDivElement | null>(null);
 
   const [turn, setTurn] = useState<Dir | null>(null);
   const turnRef = useRef<Dir | null>(null);
@@ -38,6 +39,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const busyRef = useRef(false);
   const gestureRef = useRef(false);
   const cancelSpringRef = useRef<(() => void) | null>(null);
+  const safetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Write the leaf transform straight to the DOM — no React render per frame.
   const paint = useCallback((p: number) => {
@@ -45,17 +47,22 @@ export function Book({ notebook }: { notebook: Notebook }) {
     const dir = turnRef.current;
     const leaf = leafRef.current;
     if (!dir || !leaf) return;
+    const t = clamp01(p);
     const angle = dir === "prev" ? -MAX_ANGLE * (1 - p) : -MAX_ANGLE * p;
-    leaf.style.transform = `rotateY(${angle}deg)`;
-    if (curlRef.current) {
-      curlRef.current.style.opacity = String(
-        Math.sin(clamp01(p) * Math.PI) * 0.5,
-      );
-    }
+    const arc = Math.sin(t * Math.PI); // 0 → 1 → 0 across the turn
+    // the page lifts off the spine and arcs over, rather than pivoting flat
+    const lift = 6 + arc * 34;
+    // a gentle bow — the leading edge leans as the sheet flexes
+    const bow = dir === "prev" ? -arc * 5 : arc * 5;
+    leaf.style.transform = `translateZ(${lift}px) rotateY(${angle}deg) rotateX(${bow}deg)`;
+    if (curlRef.current) curlRef.current.style.opacity = String(arc * 0.8);
+    if (castRef.current) castRef.current.style.opacity = String(arc * 0.45);
   }, []);
 
   const cleanup = useCallback(
     (commit: boolean) => {
+      if (safetyRef.current) clearTimeout(safetyRef.current);
+      safetyRef.current = null;
       const dir = turnRef.current;
       turnRef.current = null;
       gestureRef.current = false;
@@ -70,18 +77,25 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const settle = useCallback(
     (commit: boolean, velocity: number) => {
       cancelSpringRef.current?.();
+      if (safetyRef.current) clearTimeout(safetyRef.current);
       if (reducedMotion()) {
         paint(commit ? 1 : 0);
         cleanup(commit);
         return;
       }
+      // if rAF stalls (tab backgrounded mid-turn) finish anyway
+      safetyRef.current = setTimeout(() => {
+        cancelSpringRef.current?.();
+        paint(commit ? 1 : 0);
+        cleanup(commit);
+      }, 1400);
       cancelSpringRef.current = runSpring(
         progressRef.current,
         commit ? 1 : 0,
         velocity,
         paint,
         () => cleanup(commit),
-        { stiffness: 210, damping: 24 },
+        { stiffness: 186, damping: 20 },
       );
     },
     [paint, cleanup],
@@ -113,7 +127,13 @@ export function Book({ notebook }: { notebook: Notebook }) {
     if (turn) paint(progressRef.current);
   }, [turn, paint]);
 
-  useEffect(() => () => cancelSpringRef.current?.(), []);
+  useEffect(
+    () => () => {
+      cancelSpringRef.current?.();
+      if (safetyRef.current) clearTimeout(safetyRef.current);
+    },
+    [],
+  );
 
   const bindWell = useDrag(
     (state) => {
@@ -207,6 +227,17 @@ export function Book({ notebook }: { notebook: Notebook }) {
             interactive={!turn}
           />
         </div>
+
+        {turn ? (
+          <div
+            ref={(el) => {
+              castRef.current = el;
+            }}
+            className="book__cast"
+            style={{ opacity: 0 }}
+            aria-hidden="true"
+          />
+        ) : null}
 
         {turn ? (
           <div

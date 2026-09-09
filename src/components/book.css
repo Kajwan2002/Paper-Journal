@@ -4,7 +4,6 @@
   aspect-ratio: 40 / 52;
   max-height: 84vh;
   perspective: 1700px;
-  transform-style: preserve-3d;
   --spine: 14px;
 }
 
@@ -43,7 +42,10 @@
 .book__well {
   position: absolute;
   inset: 0 0 0 var(--spine);
-  transform-style: preserve-3d;
+  /* own perspective + flat context so the turning leaf composites ABOVE the
+     base by z-index and never gets occluded when it swings past vertical */
+  perspective: 1500px;
+  perspective-origin: 0% 45%;
   touch-action: pan-y;
   z-index: 2;
 }
@@ -56,8 +58,25 @@
 }
 
 .book__leaf--base {
+  z-index: 1;
   overflow: hidden;
   box-shadow: inset 22px 0 34px -30px rgba(0, 0, 0, 0.4);
+}
+
+/* shadow the lifted page casts on the sheet beneath it */
+.book__cast {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: var(--radius-page);
+  background: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.42) 0%,
+    rgba(0, 0, 0, 0.2) 20%,
+    rgba(0, 0, 0, 0.05) 42%,
+    rgba(0, 0, 0, 0) 60%
+  );
 }
 
 .book__leaf--turning {
@@ -65,8 +84,7 @@
   transform-origin: left center;
   transform-style: preserve-3d;
   will-change: transform;
-  backface-visibility: visible;
-  /* transform is driven imperatively (src/lib/spring.ts) */
+  /* transform is driven imperatively (src/components/Book.tsx + lib/spring.ts) */
 }
 
 .book__face {
@@ -80,18 +98,20 @@
 
 .book__face--front {
   box-shadow: inset 22px 0 34px -30px rgba(0, 0, 0, 0.4);
+  /* nudge toward the viewer so it wins the z-fight with the back face at 90° */
+  transform: translateZ(0.4px);
 }
 
 .book__face--back {
-  transform: rotateY(180deg);
-  background:
-    linear-gradient(
-      270deg,
-      var(--paper) 82%,
-      color-mix(in srgb, var(--paper) 80%, #000 8%) 100%
-    );
+  transform: rotateY(180deg) translateZ(0.4px);
+  background: linear-gradient(
+    270deg,
+    var(--paper) 78%,
+    color-mix(in srgb, var(--paper) 78%, #000 10%) 100%
+  );
 }
 
+/* a curved-paper sheen that reads as the sheet flexing as it turns */
 .book__curl {
   position: absolute;
   inset: 0;
@@ -99,12 +119,13 @@
   opacity: 0;
   border-radius: var(--radius-page);
   background: linear-gradient(
-    100deg,
-    rgba(0, 0, 0, 0.28) 0%,
-    rgba(0, 0, 0, 0) 22%,
-    rgba(255, 255, 255, 0.12) 42%,
-    rgba(0, 0, 0, 0) 62%,
-    rgba(0, 0, 0, 0.22) 100%
+    105deg,
+    rgba(0, 0, 0, 0.42) 0%,
+    rgba(0, 0, 0, 0.12) 10%,
+    rgba(255, 255, 255, 0.16) 34%,
+    rgba(255, 255, 255, 0.02) 50%,
+    rgba(0, 0, 0, 0.1) 74%,
+    rgba(0, 0, 0, 0.34) 100%
   );
   /* opacity is driven imperatively during the turn */
 }
