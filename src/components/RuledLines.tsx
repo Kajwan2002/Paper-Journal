@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -9,29 +10,47 @@ import {
 import {
   glyphFor,
   isStruck,
+  isTaskKind,
   newLine,
   parseLine,
   tapSignifier,
   type Line,
 } from "@/lib/rapidlog";
+import { parseDue } from "@/lib/nldate";
+import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { NAG_CAP } from "@/lib/rollover";
 import { useQuickAdd } from "@/state/quickadd";
+import { LineMenu } from "@/components/LineMenu";
 import "./ruled-lines.css";
 
 interface Props {
   lines: Line[];
   onChange: (lines: Line[]) => void;
+  /** the day these lines are written on — the anchor for "friday" */
+  date: DayKey;
   placeholder?: string;
 }
 
-export function RuledLines({ lines, onChange, placeholder }: Props) {
+export function RuledLines({ lines, onChange, date, placeholder }: Props) {
   const inputs = useRef<Map<string, HTMLInputElement>>(new Map());
-  const listRef = useRef<HTMLDivElement>(null);
-  const [focusId, setFocusId] = useState<string | null>(null);
+  /** the line to put the caret on after the next render — a ref rather than
+   *  state so asking for focus never costs an extra render pass */
+  const wantFocus = useRef<string | null>(null);
+  const setFocusId = (id: string) => {
+    wantFocus.current = id;
+  };
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
-  const rows = lines.length > 0 ? lines : [newLine()];
+  // One stable blank row for an empty page. Minting a fresh line (and a
+  // fresh id) inline on every render remounted the <input> whenever anything
+  // above re-rendered, which on a phone meant the keyboard opening resized
+  // the viewport, remounted the field, and dismissed the keyboard again.
+  const blank = useMemo(() => newLine(), []);
+  const rows = lines.length > 0 ? lines : [blank];
   const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  useEffect(() => {
+    rowsRef.current = rows;
+  });
 
   const commit = useCallback(
     (next: Line[]) => onChange(next.length > 0 ? next : [newLine()]),
@@ -39,13 +58,14 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
   );
 
   useEffect(() => {
-    if (!focusId) return;
-    const el = inputs.current.get(focusId);
-    el?.focus();
-    const v = el?.value ?? "";
-    el?.setSelectionRange(v.length, v.length);
-    setFocusId(null);
-  }, [focusId]);
+    const id = wantFocus.current;
+    if (!id) return;
+    wantFocus.current = null;
+    const el = inputs.current.get(id);
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  });
 
   // --- quick-add tray ---------------------------------------------------
   const pending = useQuickAdd((s) => s.pending);
@@ -65,6 +85,13 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
   }, [pending, onChange, consume]);
 
   // --- editing --------------------------------------------------------
+  const patch = useCallback(
+    (id: string, change: (line: Line) => Line) => {
+      commit(rowsRef.current.map((l) => (l.id === id ? change(l) : l)));
+    },
+    [commit],
+  );
+
   const editText = (id: string, raw: string) => {
     const idx = rows.findIndex((l) => l.id === id);
     if (idx < 0) return;
@@ -88,20 +115,40 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
     commit(next);
   };
 
+  /** Read a trailing "friday" off a task and file it — on commit only, so
+   *  the text never rearranges itself under the cursor mid-word. */
+  const settleLine = (id: string) => {
+    const line = rowsRef.current.find((l) => l.id === id);
+    if (!line || !isTaskKind(line) || line.due || line.someday) return;
+    const { text, due } = parseDue(line.text, date);
+    if (!due) return;
+    patch(id, (l) => ({ ...l, text, due }));
+  };
+
   const onKey = (e: KeyboardEvent<HTMLInputElement>, id: string) => {
     const idx = rows.findIndex((l) => l.id === id);
     if (idx < 0) return;
 
+    // Tick a task off without leaving the keyboard. Checked before plain
+    // Enter, which would otherwise swallow the chord and open a new line.
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      patch(id, tapSignifier);
+      return;
+    }
+
     if (e.key === "Enter") {
       e.preventDefault();
+      settleLine(id);
       const prev = rows[idx];
       const created = newLine(
         prev.kind === "task" ? "task" : "note",
         "",
         prev.indent ?? 0,
       );
-      const next = [...rows];
-      next.splice(idx + 1, 0, created);
+      const next = [...rowsRef.current];
+      const at = next.findIndex((l) => l.id === id);
+      next.splice(at + 1, 0, created);
       commit(next);
       setFocusId(created.id);
       return;
@@ -133,6 +180,7 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
       commit(rows.filter((l) => l.id !== id));
       const before = rows[idx - 1];
       if (before) setFocusId(before.id);
+      return;
     }
 
     if (e.key === "ArrowUp" && idx > 0) {
@@ -145,8 +193,13 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
     }
   };
 
-  const tap = (id: string) =>
-    commit(rows.map((l) => (l.id === id ? tapSignifier(l) : l)));
+  const removeLine = (id: string) => {
+    const idx = rowsRef.current.findIndex((l) => l.id === id);
+    commit(rowsRef.current.filter((l) => l.id !== id));
+    const before = rowsRef.current[idx - 1];
+    if (before) setFocusId(before.id);
+    setMenuFor(null);
+  };
 
   // --- drag to reorder ----------------------------------------------
   const [drag, setDrag] = useState<{ id: string; dy: number } | null>(null);
@@ -191,64 +244,114 @@ export function RuledLines({ lines, onChange, placeholder }: Props) {
   };
 
   const pageEmpty = rows.length === 1 && rows[0].text === "";
+  const today = todayKey();
 
   return (
-    <div className="ruled" ref={listRef}>
-      {rows.map((line) => (
-        <div
-          key={line.id}
-          className={`ruled__row ruled__row--${line.kind} ${
-            drag?.id === line.id ? "ruled__row--drag" : ""
-          }`}
-          data-indent={line.indent ?? 0}
-          data-rolls={Math.min(line.rolls ?? 0, NAG_CAP)}
-          data-struck={isStruck(line) ? "1" : "0"}
-          style={
-            drag?.id === line.id
-              ? { transform: `translateY(${drag.dy}px)`, zIndex: 5 }
-              : undefined
-          }
-        >
-          <button
-            type="button"
-            className="ruled__glyph"
-            tabIndex={-1}
-            aria-label={
-              isStruck(line) ? "Mark as not done" : "Cross out / mark done"
+    <div className="ruled">
+      {rows.map((line) => {
+        const struck = isStruck(line);
+        const overdue = !!line.due && line.due < today && !struck;
+        return (
+          <div
+            key={line.id}
+            className={`ruled__row ruled__row--${line.kind} ${
+              drag?.id === line.id ? "ruled__row--drag" : ""
+            } ${menuFor === line.id ? "ruled__row--menu" : ""}`}
+            data-indent={line.indent ?? 0}
+            data-rolls={Math.min(line.rolls ?? 0, NAG_CAP)}
+            data-struck={struck ? "1" : "0"}
+            style={
+              drag?.id === line.id
+                ? { transform: `translateY(${drag.dy}px)`, zIndex: 5 }
+                : undefined
             }
-            onClick={() => tap(line.id)}
           >
-            {glyphFor(line)}
-          </button>
-          <input
-            ref={(el) => {
-              if (el) inputs.current.set(line.id, el);
-              else inputs.current.delete(line.id);
-            }}
-            className="ruled__input"
-            value={line.text}
-            spellCheck={false}
-            autoComplete="off"
-            onChange={(e) => editText(line.id, e.target.value)}
-            onKeyDown={(e) => onKey(e, line.id)}
-          />
-          <span className="ruled__strike" aria-hidden="true" />
-          {rows.length > 1 ? (
             <button
               type="button"
-              className="ruled__grip"
-              tabIndex={-1}
-              aria-label="Drag to reorder"
-              onPointerDown={(e) => onGripDown(e, line.id)}
-              onPointerMove={onGripMove}
-              onPointerUp={onGripUp}
-              onPointerCancel={onGripUp}
+              className="ruled__glyph"
+              aria-pressed={struck}
+              aria-label={
+                struck
+                  ? `Not done: ${line.text || "empty line"}`
+                  : `Mark done: ${line.text || "empty line"}`
+              }
+              onClick={() => patch(line.id, tapSignifier)}
             >
-              ⠿
+              {glyphFor(line)}
             </button>
-          ) : null}
-        </div>
-      ))}
+
+            <input
+              ref={(el) => {
+                if (el) inputs.current.set(line.id, el);
+                else inputs.current.delete(line.id);
+              }}
+              className="ruled__input"
+              value={line.text}
+              spellCheck={false}
+              autoComplete="off"
+              aria-label="Line"
+              onChange={(e) => editText(line.id, e.target.value)}
+              onKeyDown={(e) => onKey(e, line.id)}
+              onBlur={() => settleLine(line.id)}
+            />
+
+            {line.someday ? (
+              <span className="ruled__chip ruled__chip--someday">someday</span>
+            ) : line.due ? (
+              <span
+                className={`ruled__chip ${overdue ? "ruled__chip--late" : ""}`}
+              >
+                {relativeDay(line.due, today)}
+              </span>
+            ) : null}
+
+            <span className="ruled__strike" aria-hidden="true" />
+
+            <div className="ruled__tools">
+              <button
+                type="button"
+                className="ruled__tool"
+                aria-label={`Options for: ${line.text || "empty line"}`}
+                aria-haspopup="menu"
+                aria-expanded={menuFor === line.id}
+                onClick={() =>
+                  setMenuFor((m) => (m === line.id ? null : line.id))
+                }
+              >
+                ⋯
+              </button>
+              {rows.length > 1 ? (
+                <button
+                  type="button"
+                  className="ruled__grip"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onPointerDown={(e) => onGripDown(e, line.id)}
+                  onPointerMove={onGripMove}
+                  onPointerUp={onGripUp}
+                  onPointerCancel={onGripUp}
+                >
+                  ⠿
+                </button>
+              ) : null}
+            </div>
+
+            {menuFor === line.id ? (
+              <LineMenu
+                line={line}
+                date={date}
+                onClose={() => setMenuFor(null)}
+                onPatch={(change) => {
+                  patch(line.id, change);
+                  setMenuFor(null);
+                }}
+                onDelete={() => removeLine(line.id)}
+              />
+            ) : null}
+          </div>
+        );
+      })}
+
       {pageEmpty && placeholder ? (
         <p className="ruled__placeholder" aria-hidden="true">
           {placeholder}

@@ -16,7 +16,7 @@ import { paintPage } from "@/render/paintPage";
 import { paintCover } from "@/render/paintCover";
 import { hexToRgb, readPalette } from "@/lib/theme";
 import { prefersReducedMotion } from "@/lib/prefs";
-import { useOverlay } from "@/state/overlay";
+import { overlayOpen } from "@/state/overlay";
 import { DailyPage } from "@/components/DailyPage";
 import "./book.css";
 
@@ -85,6 +85,46 @@ function measure(el: HTMLElement | null): Geom {
   };
 }
 
+/** Geometry equality to within a pixel — enough to tell a real layout change
+ *  from observer noise. */
+function same(a: Geom, b: Geom): boolean {
+  return (
+    Math.abs(a.pageW - b.pageW) < 0.5 &&
+    Math.abs(a.pageH - b.pageH) < 0.5 &&
+    Math.abs(a.spineX - b.spineX) < 0.5 &&
+    Math.abs(a.centerX - b.centerX) < 0.5 &&
+    Math.abs(a.topY - b.topY) < 0.5 &&
+    a.dpr === b.dpr &&
+    a.narrow === b.narrow
+  );
+}
+
+/** Put the caret on the line nearest where the paper was tapped, the way a
+ *  pen lands where you put it. Below the last line means the last line. */
+function writeWhereTapped(clientY: number): void {
+  const half = document.querySelector(".book__half--right");
+  const inputs = half?.querySelectorAll<HTMLInputElement>(".ruled__input");
+  if (!inputs?.length) return;
+
+  let best = inputs[0];
+  let bestDist = Infinity;
+  for (const input of inputs) {
+    const r = input.getBoundingClientRect();
+    const dist =
+      clientY < r.top
+        ? r.top - clientY
+        : clientY > r.bottom
+          ? clientY - r.bottom
+          : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = input;
+    }
+  }
+  best.focus();
+  best.setSelectionRange(best.value.length, best.value.length);
+}
+
 const engineCache = new WeakMap<HTMLCanvasElement, PageTurnGL>();
 
 export function Book({ notebook }: { notebook: Notebook }) {
@@ -94,15 +134,14 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const closeBook = useSession((s) => s.closeBook);
   const step = useSession((s) => s.step);
 
-
   const wrapRef = useRef<HTMLDivElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<PageTurnGL | null>(null);
   const leafC = useRef<HTMLCanvasElement>(document.createElement("canvas"));
 
   const [geom, setGeom] = useState<Geom>(() => measure(null));
+  // kept in step by the resize effect below, which is the only writer
   const geomRef = useRef(geom);
-  geomRef.current = geom;
 
   const [turn, setTurn] = useState<Turn | null>(null);
   const [settling, setSettling] = useState(false);
@@ -111,23 +150,28 @@ export function Book({ notebook }: { notebook: Notebook }) {
   const busyRef = useRef(false);
   const cancelSpring = useRef<(() => void) | null>(null);
   const safety = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** where the running spring is headed, so a new gesture can land it early */
+  const settlingTo = useRef<0 | 1 | null>(null);
 
   // --- sizing ---------------------------------------------------------
   useEffect(() => {
     const stage = wrapRef.current?.parentElement ?? null;
     const apply = () => {
       const g = measure(stage);
+      // Bail unless something really moved. `measure` returns a fresh object
+      // every call, so setting it unconditionally re-rendered the whole book
+      // on every observer tick — and on iOS the software keyboard resizes
+      // the visual viewport, which meant focusing a line re-rendered the
+      // page out from under the caret and dismissed the keyboard again.
+      if (same(g, geomRef.current)) return;
+      geomRef.current = g;
       setGeom(g);
       engineRef.current?.resize(g.canvasW, g.canvasH, g.pageW, g.pageH, g.dpr);
     };
     apply();
     const ro = new ResizeObserver(apply);
     if (stage) ro.observe(stage);
-    window.addEventListener("resize", apply);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", apply);
-    };
+    return () => ro.disconnect();
   }, []);
 
   // --- engine (one context per <canvas>, kept across StrictMode) -------
@@ -169,6 +213,18 @@ export function Book({ notebook }: { notebook: Notebook }) {
     return () => {
       canvas.removeEventListener("webglcontextlost", onLost);
       canvas.removeEventListener("webglcontextrestored", onRestored);
+      // Book is keyed by notebook id, so switching notebooks tears this
+      // down. Browsers cap live WebGL contexts (~16); hand this one back
+      // rather than waiting for the canvas to be collected. Deferred and
+      // guarded on isConnected so a StrictMode remount — which unmounts and
+      // remounts the same live node — keeps its context.
+      setTimeout(() => {
+        if (canvas.isConnected) return;
+        const live = engineCache.get(canvas);
+        if (!live) return;
+        engineCache.delete(canvas);
+        live.dispose();
+      }, 0);
     };
   }, []);
 
@@ -185,14 +241,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
       const [pr, pg, pb] = hexToRgb(pal.paper);
       engineRef.current?.setPaper(pr / 255, pg / 255, pb / 255);
       if (kind === "cover") {
-        paintCover(
-          c,
-          g.pageW,
-          g.pageH,
-          g.dpr,
-          notebook.title,
-          notebook.cover,
-        );
+        paintCover(c, g.pageW, g.pageH, g.dpr, notebook.title, notebook.cover);
       } else {
         paintPage({
           canvas: c,
@@ -221,6 +270,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
       if (safety.current) clearTimeout(safety.current);
       safety.current = null;
       cancelSpring.current = null;
+      settlingTo.current = null;
       const t = turnRef.current;
       turnRef.current = null;
       busyRef.current = false;
@@ -252,6 +302,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
         finalize(committed);
         return;
       }
+      settlingTo.current = target;
       safety.current = setTimeout(() => {
         cancelSpring.current?.();
         paint(target);
@@ -269,8 +320,20 @@ export function Book({ notebook }: { notebook: Notebook }) {
     [paint, finalize],
   );
 
+  /** Land an in-flight turn at once. Swiping twice in quick succession is
+   *  how anyone actually skips two days; without this the second swipe was
+   *  silently dropped while the first was still springing home. */
+  const landPending = useCallback(() => {
+    const target = settlingTo.current;
+    if (target === null || !busyRef.current) return;
+    cancelSpring.current?.();
+    paint(target);
+    finalize(target === 1);
+  }, [paint, finalize]);
+
   const begin = useCallback(
     (kind: Kind, dir: 1 | -1): boolean => {
+      if (busyRef.current) landPending();
       if (busyRef.current) return false;
       const engine = engineRef.current;
 
@@ -310,7 +373,16 @@ export function Book({ notebook }: { notebook: Notebook }) {
       setTurn(t);
       return true;
     },
-    [date, notebook.id, dressLeaf, paint, openBook, closeBook, step],
+    [
+      date,
+      notebook.id,
+      dressLeaf,
+      paint,
+      openBook,
+      closeBook,
+      step,
+      landPending,
+    ],
   );
 
   const flip = useCallback(
@@ -332,7 +404,6 @@ export function Book({ notebook }: { notebook: Notebook }) {
         first,
         last,
         tap,
-        xy: [px],
         initial: [ix],
         movement: [mx],
         velocity: [vx],
@@ -344,20 +415,25 @@ export function Book({ notebook }: { notebook: Notebook }) {
       // fraction across the active page: 0 at the spine, 1 at its outer
       // edge, negative over the facing page. Works in both layouts.
       const spineScreenX = rect.left + rect.width / 2;
-      const pageFrac = (x: number) => (x - spineScreenX) / geomRef.current.pageW;
+      const pageFrac = (x: number) =>
+        (x - spineScreenX) / geomRef.current.pageW;
 
       if (tap) {
         const el = event.target as HTMLElement | null;
         if (el?.closest(".ruled__input, button, a")) return;
+        // Tapping never turns a page. On paper you turn a page by moving it,
+        // and a stray tap that jumps you to tomorrow mid-sentence is the
+        // single most annoying thing a notebook can do. Turns are swipe,
+        // arrow keys, or the month grid — nothing else.
         if (!open) return flip("cover", 1);
-        const f = pageFrac(px);
-        if (f > 0.52) flip("page", 1);
-        else if (f < 0.12) flip("page", -1);
+        const y = "clientY" in event ? event.clientY : state.xy[1];
+        writeWhereTapped(y);
         return;
       }
 
       if (first) {
         grabRef.current = null;
+        if (busyRef.current) landPending();
         if (busyRef.current) return;
         const span = geomRef.current.pageW * 0.82;
         if (!open) {
@@ -408,8 +484,9 @@ export function Book({ notebook }: { notebook: Notebook }) {
   // --- keyboard ----------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const ov = useOverlay.getState();
-      if (ov.month || ov.search) return; // the overlay owns the keyboard
+      if (overlayOpen()) return; // the overlay owns the keyboard
+      // a line menu is open on the page — it handles its own keys
+      if (document.querySelector(".lmenu")) return;
       const el = document.activeElement;
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
         return;
@@ -508,6 +585,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
             <DailyPage
               notebookId={notebook.id}
               date={leftDate}
+              paper={notebook.paper}
               interactive={false}
             />
           </div>
@@ -516,6 +594,7 @@ export function Book({ notebook }: { notebook: Notebook }) {
             <DailyPage
               notebookId={notebook.id}
               date={rightDate}
+              paper={notebook.paper}
               interactive={rightLive}
             />
           </div>
@@ -543,23 +622,24 @@ export function Book({ notebook }: { notebook: Notebook }) {
         />
       ) : null}
 
-      <button
-        type="button"
-        className="sr-only"
-        onClick={() => flip(open ? "page" : "cover", open ? -1 : 1)}
-      >
-        {open ? "Previous day" : "Open notebook"}
-      </button>
-      {open ? (
+      <nav className="book__pager" aria-label="Turn the page">
         <button
           type="button"
           className="sr-only"
-          onClick={() => flip("page", 1)}
+          onClick={() => flip(open ? "page" : "cover", open ? -1 : 1)}
         >
-          Next day
+          {open ? "Previous day" : "Open notebook"}
         </button>
-      ) : null}
-
+        {open ? (
+          <button
+            type="button"
+            className="sr-only"
+            onClick={() => flip("page", 1)}
+          >
+            Next day
+          </button>
+        ) : null}
+      </nav>
     </div>
   );
 }

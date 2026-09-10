@@ -14,7 +14,7 @@ const LABEL: Record<string, string> = {
 
 export function QuickAdd() {
   const open = useSession((s) => s.open);
-  const overlay = useOverlay((s) => s.month || s.search);
+  const overlay = useOverlay((s) => s.open !== null);
   const request = useQuickAdd((s) => s.request);
 
   if (!open || overlay) return null;

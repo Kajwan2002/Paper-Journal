@@ -1,0 +1,9 @@
+dist
+dev-dist
+src/assets
+src/styles/fonts.css
+package-lock.json
+
+# documents, not code — reformatting them is pure diff noise
+design-brief.html
+docs/REBUILD-PROMPT.md

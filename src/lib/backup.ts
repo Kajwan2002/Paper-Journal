@@ -108,6 +108,10 @@ export interface ImportResult {
   notebooks: number;
   pages: number;
   skipped: number;
+  /** notebooks the import actually put pages into, so the app can land the
+   *  reader on their restored journal rather than the empty one it made
+   *  for them on first run */
+  restored: string[];
 }
 
 function isBackup(value: unknown): value is Backup {
@@ -142,6 +146,7 @@ export async function importBackup(text: string): Promise<ImportResult> {
 
   let pagesTouched = 0;
   let skipped = 0;
+  const restored = new Set<string>();
 
   await db.transaction("rw", db.notebooks, db.pages, async () => {
     for (const notebook of parsed.notebooks) {
@@ -154,6 +159,7 @@ export async function importBackup(text: string): Promise<ImportResult> {
         skipped++;
         continue;
       }
+      restored.add(page.notebookId);
       const existing = await db.pages.get(page.id);
       if (!existing) {
         await db.pages.put({ ...page, updatedAt: Date.now() });
@@ -176,5 +182,6 @@ export async function importBackup(text: string): Promise<ImportResult> {
     notebooks: parsed.notebooks.length,
     pages: pagesTouched,
     skipped,
+    restored: [...restored],
   };
 }

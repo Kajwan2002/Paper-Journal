@@ -44,32 +44,38 @@ export function pageId(notebookId: string, date: DayKey): string {
 }
 
 /** Ensure there is at least one notebook and return the current shelf.
- *  Memoised so a StrictMode double-mount can't create two "Journal"s — but
- *  the memo is dropped on failure, so a transient IndexedDB error (private
+ *
+ *  Only the *seeding* is memoised — enough to stop a StrictMode double-mount
+ *  creating two "Journal"s — and the shelf itself is re-read every time.
+ *  Memoising the whole result meant a renamed, added or imported notebook
+ *  was invisible until a reload, and a restore silently bounced the reader
+ *  back to the empty notebook first-run had made for them.
+ *
+ *  The memo is dropped on failure, so a transient IndexedDB error (private
  *  browsing, storage pressure, a blocked upgrade) can be retried instead of
  *  being cached as a permanent blank desk. */
-let shelfPromise: Promise<Notebook[]> | null = null;
+let seeding: Promise<void> | null = null;
+
 export function ensureShelf(): Promise<Notebook[]> {
-  if (!shelfPromise) {
-    shelfPromise = db.transaction("rw", db.notebooks, async () => {
-      const existing = await db.notebooks.orderBy("order").toArray();
-      if (existing.length > 0) return existing;
-      const first: Notebook = {
-        id: newId(),
-        title: "Journal",
-        cover: "oxblood",
-        paper: "cream-lined",
-        order: 0,
-        createdAt: Date.now(),
-      };
-      await db.notebooks.add(first);
-      return [first];
-    });
-    shelfPromise.catch(() => {
-      shelfPromise = null;
-    });
+  if (!seeding) {
+    seeding = db
+      .transaction("rw", db.notebooks, async () => {
+        if ((await db.notebooks.count()) > 0) return;
+        await db.notebooks.add({
+          id: newId(),
+          title: "Journal",
+          cover: "oxblood",
+          paper: "cream-lined",
+          order: 0,
+          createdAt: Date.now(),
+        });
+      })
+      .catch((err) => {
+        seeding = null;
+        throw err;
+      });
   }
-  return shelfPromise;
+  return seeding.then(() => db.notebooks.orderBy("order").toArray());
 }
 
 export async function updateNotebook(
@@ -94,8 +100,15 @@ export async function addNotebook(
     createdAt: Date.now(),
   };
   await db.notebooks.add(notebook);
-  shelfPromise = null; // next read picks up the new shelf
   return notebook;
+}
+
+export function listNotebooks(): Promise<Notebook[]> {
+  return db.notebooks.orderBy("order").toArray();
+}
+
+export function pageCount(notebookId: string): Promise<number> {
+  return db.pages.where("notebookId").equals(notebookId).count();
 }
 
 /** Is IndexedDB actually usable here? Private-mode Firefox and some locked

@@ -29,3 +29,31 @@
 .deskctl__btn:active {
   transform: scale(0.9);
 }
+
+.deskctl__btn--loops {
+  position: relative;
+}
+
+.deskctl__count {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.15rem;
+  min-width: 0.95rem;
+  padding: 0 0.15rem;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  line-height: 0.95rem;
+  text-align: center;
+  color: var(--paper);
+  background: var(--oxblood);
+  border-radius: 999px;
+}
+
+/* On a phone the centred quick-add tray and this cluster were both pinned to
+   the same baseline and ran into each other — the tray's last two nibs sat
+   under the first two buttons. Stack them instead. */
+@media (max-width: 680px) {
+  .deskctl {
+    bottom: calc(max(0.7rem, env(safe-area-inset-bottom)) + 2.75rem);
+  }
+}

@@ -7,7 +7,10 @@
 .ruled__row {
   position: relative;
   display: grid;
-  grid-template-columns: 1.4rem minmax(0, 1fr);
+  /* glyph · text · schedule chip · tools. Four explicit tracks: with only
+     three, a row that grew a chip wrapped its tools onto a second line and
+     opened a hole in the ruling. */
+  grid-template-columns: 1.4rem minmax(0, 1fr) auto auto;
   align-items: end;
   gap: 0.4rem;
   min-height: 2.05rem;
@@ -94,13 +97,12 @@
   color: var(--oxblood);
 }
 
-/* drag-to-reorder grip */
+/* drag-to-reorder grip — sits beside the options button in the tools
+   cluster, not absolutely over it; it used to be the only thing out there
+   and swallowed the clicks meant for its neighbour */
 .ruled__grip {
-  position: absolute;
-  right: -0.1rem;
-  top: 0;
-  bottom: 0;
   width: 1.4rem;
+  min-height: 2.05rem;
   display: grid;
   place-items: center;
   font-size: 0.7rem;
@@ -112,6 +114,7 @@
   transition: opacity 0.15s ease;
 }
 .ruled__row:hover .ruled__grip,
+.ruled__row--menu .ruled__grip,
 .ruled__grip:focus-visible {
   opacity: 0.55;
 }
@@ -224,4 +227,91 @@
   .ruled__strike {
     transition: none;
   }
+}
+
+/* --- scheduling chips ------------------------------------------------- */
+
+.ruled__chip {
+  grid-column: 3;
+  align-self: center;
+  padding: 0.05rem 0.34rem;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  white-space: nowrap;
+  color: var(--brass);
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, transparent);
+  border-radius: 999px;
+}
+.ruled__chip--late {
+  color: var(--oxblood);
+  border-color: color-mix(in srgb, var(--oxblood) 45%, transparent);
+}
+.ruled__chip--someday {
+  color: var(--ink-faint);
+  border-color: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.ruled__row[data-struck="1"] .ruled__chip {
+  opacity: 0.4;
+}
+
+/* --- per-line tools --------------------------------------------------- */
+
+.ruled__tools {
+  grid-column: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  align-self: stretch;
+}
+
+.ruled__tool {
+  width: 1.5rem;
+  height: 100%;
+  min-height: 2.05rem;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  opacity: 0;
+  transition:
+    opacity 0.14s ease,
+    color 0.14s ease;
+}
+.ruled__row:hover .ruled__tool,
+.ruled__row:focus-within .ruled__tool,
+.ruled__row--menu .ruled__tool,
+.ruled__tool:focus-visible {
+  opacity: 1;
+}
+.ruled__tool:hover {
+  color: var(--oxblood);
+}
+
+/* touch has no hover — the affordance has to be permanently there */
+@media (hover: none) {
+  .ruled__tool {
+    opacity: 0.5;
+  }
+}
+
+/* the glyph is a real control now, not a decoration with a click handler */
+.ruled__glyph {
+  border-radius: 3px;
+}
+.ruled__glyph:focus-visible {
+  outline: 2px solid var(--oxblood-bright);
+  outline-offset: -1px;
+}
+
+/* one level of nesting, drawn as a hanging indent rather than a bare offset */
+.ruled__row[data-indent="1"]::before {
+  content: "";
+  position: absolute;
+  left: 0.62rem;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink) 15%, transparent);
 }

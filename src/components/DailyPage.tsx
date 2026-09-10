@@ -1,13 +1,15 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   isToday,
+  lastYear,
   longDate,
   ordinalDay,
+  relativeDay,
   todayKey,
   weekday,
   type DayKey,
 } from "@/lib/date";
-import { pageId } from "@/lib/db";
+import { getPage, pageId, type PaperStyle } from "@/lib/db";
 import { getCached, prime, subscribe, writeLines } from "@/lib/pageStore";
 import type { Line } from "@/lib/rapidlog";
 import { glyphFor, isStruck } from "@/lib/rapidlog";
@@ -20,11 +22,17 @@ import "./daily-page.css";
 interface Props {
   notebookId: string;
   date: DayKey;
+  paper?: PaperStyle;
   /** a page sitting behind a turn is shown read-only */
   interactive?: boolean;
 }
 
-export function DailyPage({ notebookId, date, interactive = true }: Props) {
+export function DailyPage({
+  notebookId,
+  date,
+  paper = "cream-lined",
+  interactive = true,
+}: Props) {
   const key = pageId(notebookId, date);
   const lines = useSyncExternalStore(
     (cb) => subscribe(key, cb),
@@ -37,11 +45,14 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
 
   const today = isToday(date);
   const ready = lines !== undefined;
-  const openMonth = useOverlay((s) => s.openMonth);
+  const show = useOverlay((s) => s.show);
   const goToDate = useSession((s) => s.goToDate);
 
   return (
-    <article className={`daily ${today ? "daily--today" : ""}`}>
+    <article
+      className={`daily daily--${paper} ${today ? "daily--today" : ""}`}
+      data-paper={paper}
+    >
       <div className="daily__margin" aria-hidden="true" />
       <header className="daily__head">
         <div className="daily__meta">
@@ -55,7 +66,7 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
             type="button"
             className="daily__datebtn"
             aria-label={`${longDate(date)} — jump to another day`}
-            onClick={openMonth}
+            onClick={() => show("month")}
           >
             <h1 className="daily__date">{longDate(date)}</h1>
           </button>
@@ -69,12 +80,16 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
           interactive ? (
             <RuledLines
               lines={lines}
+              date={date}
               onChange={(next) => writeLines(notebookId, date, next)}
               placeholder="What matters today?"
             />
           ) : (
             <StaticLines lines={lines} />
           )
+        ) : null}
+        {interactive ? (
+          <Marginalia key={date} notebookId={notebookId} date={date} />
         ) : null}
       </div>
 
@@ -94,8 +109,44 @@ export function DailyPage({ notebookId, date, interactive = true }: Props) {
   );
 }
 
+/** The one thing paper can't do: remember what you wrote here a year ago.
+ *  Drawn small, at the foot of the page, in the tone of a note someone
+ *  pencilled in the margin — never a card, never a notification. */
+function Marginalia({
+  notebookId,
+  date,
+}: {
+  notebookId: string;
+  date: DayKey;
+}) {
+  const [echo, setEcho] = useState<Line | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void getPage(notebookId, lastYear(date)).then((page) => {
+      if (!alive || !page) return;
+      const written = page.lines
+        .filter((l) => l.text.trim().length > 1 && !l.carriedTo)
+        .sort((a, b) => b.text.length - a.text.length);
+      setEcho(written[0] ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [notebookId, date]);
+
+  if (!echo) return null;
+  return (
+    <aside className="daily__echo">
+      <span className="daily__echo-when">a year ago</span>
+      <span className="daily__echo-text">{echo.text}</span>
+    </aside>
+  );
+}
+
 function StaticLines({ lines }: { lines: Line[] }) {
   const written = lines.filter((l) => l.text.trim().length > 0);
+  const today = todayKey();
   if (written.length === 0) {
     return (
       <div className="ruled" aria-hidden="true">
@@ -115,6 +166,11 @@ function StaticLines({ lines }: { lines: Line[] }) {
         >
           <span className="ruled__glyph">{glyphFor(l)}</span>
           <span className="ruled__static">{l.text}</span>
+          {l.someday ? (
+            <span className="ruled__chip ruled__chip--someday">someday</span>
+          ) : l.due ? (
+            <span className="ruled__chip">{relativeDay(l.due, today)}</span>
+          ) : null}
           <span className="ruled__strike" aria-hidden="true" />
         </div>
       ))}

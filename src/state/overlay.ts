@@ -1,20 +1,23 @@
 import { create } from "zustand";
 
-/** Transient UI overlays that sit on top of the open book — the month-jump
- *  grid and search. Not persisted; only ever one is open at a time. */
+/** Transient UI overlays that sit on top of the open book. Not persisted;
+ *  only ever one is open at a time, so they can't stack into a modal pile. */
+
+export type OverlayKind = "month" | "search" | "loops" | "settings";
 
 interface OverlayState {
-  month: boolean;
-  search: boolean;
-  openMonth: () => void;
-  openSearch: () => void;
+  open: OverlayKind | null;
+  show: (kind: OverlayKind) => void;
   close: () => void;
 }
 
 export const useOverlay = create<OverlayState>((set) => ({
-  month: false,
-  search: false,
-  openMonth: () => set({ month: true, search: false }),
-  openSearch: () => set({ search: true, month: false }),
-  close: () => set({ month: false, search: false }),
+  open: null,
+  show: (kind) => set({ open: kind }),
+  close: () => set({ open: null }),
 }));
+
+/** Is any overlay up? Used by the book to hand over the keyboard. */
+export function overlayOpen(): boolean {
+  return useOverlay.getState().open !== null;
+}

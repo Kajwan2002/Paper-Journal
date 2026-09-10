@@ -15,24 +15,40 @@ const GLYPH: Record<ThemeChoice, string> = {
   dark: "☾",
 };
 
-export function DeskControls() {
+export function DeskControls({ loops }: { loops: number }) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
   const open = useSession((s) => s.open);
-  const openSearch = useOverlay((s) => s.openSearch);
+  const show = useOverlay((s) => s.show);
 
   return (
-    <div className="deskctl" role="group" aria-label="Notebook settings">
+    <div className="deskctl" role="group" aria-label="Notebook">
       {open ? (
-        <button
-          type="button"
-          className="deskctl__btn"
-          title="Search the notebook"
-          aria-label="Search the notebook"
-          onClick={openSearch}
-        >
-          ⌕
-        </button>
+        <>
+          <button
+            type="button"
+            className="deskctl__btn deskctl__btn--loops"
+            title="Open loops"
+            aria-label={`Open loops${loops ? `: ${loops} outstanding` : ""}`}
+            onClick={() => show("loops")}
+          >
+            ❧
+            {loops ? (
+              <span className="deskctl__count" aria-hidden="true">
+                {loops > 99 ? "99+" : loops}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            className="deskctl__btn"
+            title="Search the notebook"
+            aria-label="Search the notebook"
+            onClick={() => show("search")}
+          >
+            ⌕
+          </button>
+        </>
       ) : null}
       <button
         type="button"
@@ -46,6 +62,15 @@ export function DeskControls() {
         }}
       >
         {GLYPH[theme]}
+      </button>
+      <button
+        type="button"
+        className="deskctl__btn"
+        title="Notebook & backups"
+        aria-label="Notebook and backups"
+        onClick={() => show("settings")}
+      >
+        ⚙
       </button>
     </div>
   );

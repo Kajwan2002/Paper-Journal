@@ -1,0 +1,109 @@
+.set__field,
+.set__group {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.set__label {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0;
+}
+
+.set__input {
+  width: 100%;
+  padding: 0.3rem 0;
+  font-family: var(--display);
+  font-size: 1rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+  outline: none;
+}
+.set__input:focus {
+  border-bottom-color: var(--oxblood);
+}
+
+.set__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sheet__btn--on {
+  color: var(--oxblood);
+  border-color: color-mix(in srgb, var(--oxblood) 45%, transparent);
+  background: color-mix(in srgb, var(--oxblood) 9%, transparent);
+}
+
+.set__swatches {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.set__swatch {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.set__swatch:hover {
+  transform: translateY(-1px);
+}
+.set__swatch--on {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 2px var(--paper),
+    0 0 0 3px var(--oxblood);
+}
+.set__swatch--oxblood {
+  background: linear-gradient(160deg, #7c3c40, #3f1c20);
+}
+.set__swatch--tan {
+  background: linear-gradient(160deg, #b08355, #7a5330);
+}
+.set__swatch--forest {
+  background: linear-gradient(160deg, #3f6350, #22382c);
+}
+.set__swatch--black-cloth {
+  background: linear-gradient(160deg, #3a3a3c, #191919);
+}
+
+.set__note {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 0.83rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.set__ok {
+  margin: 0.15rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--thread);
+}
+
+.set__persist {
+  justify-self: start;
+  margin-top: 0.15rem;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--oxblood);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

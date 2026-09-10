@@ -2,13 +2,12 @@
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background:
-    radial-gradient(
-      130% 100% at 25% 0%,
-      color-mix(in srgb, var(--desk) 82%, #fff 12%),
-      var(--desk) 45%,
-      var(--desk-deep) 100%
-    );
+  background: radial-gradient(
+    130% 100% at 25% 0%,
+    color-mix(in srgb, var(--desk) 82%, #fff 12%),
+    var(--desk) 45%,
+    var(--desk-deep) 100%
+  );
 }
 
 .desk__grain {

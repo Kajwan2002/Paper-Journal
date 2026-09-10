@@ -54,9 +54,7 @@ export class PageTurnGL {
         antialias: true,
         depth: true,
       }) ||
-      (canvas.getContext(
-        "experimental-webgl",
-      ) as WebGLRenderingContext | null);
+      (canvas.getContext("experimental-webgl") as WebGLRenderingContext | null);
     if (!gl) throw new Error("WebGL unavailable");
     this.gl = gl;
 

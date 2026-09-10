@@ -1,0 +1,106 @@
+.dpick {
+  --cell: 2rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dpick__head {
+  display: grid;
+  grid-template-columns: 1.8rem 1fr 1.8rem;
+  align-items: center;
+}
+
+.dpick__title {
+  text-align: center;
+  font-family: var(--display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.dpick__nav {
+  height: 1.8rem;
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+  border-radius: 999px;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+.dpick__nav:hover {
+  color: var(--oxblood);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.dpick__dow,
+.dpick__grid {
+  display: grid;
+  grid-template-columns: repeat(7, var(--cell));
+  justify-content: center;
+}
+
+.dpick__dow {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: center;
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 30%, transparent);
+}
+
+.dpick__grid {
+  gap: 1px;
+}
+
+.dpick__day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  height: var(--cell);
+  font-family: var(--serif);
+  font-size: 0.86rem;
+  color: var(--ink);
+  border-radius: 3px;
+  transition:
+    background 0.13s ease,
+    color 0.13s ease;
+}
+.dpick__day:hover {
+  background: color-mix(in srgb, var(--brass) 18%, transparent);
+}
+.dpick__day--spill {
+  color: color-mix(in srgb, var(--ink-faint) 70%, transparent);
+}
+.dpick__day--today .dpick__num {
+  color: var(--oxblood);
+  font-weight: 600;
+}
+.dpick__day--here {
+  background: color-mix(in srgb, var(--oxblood) 15%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--oxblood) 45%, transparent);
+}
+.dpick__day--written .dpick__num {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brass) 70%, transparent);
+  text-underline-offset: 2px;
+}
+
+.dpick__num {
+  line-height: 1;
+}
+
+/* how much is on that day, as a tally you read without counting */
+.dpick__load {
+  position: absolute;
+  bottom: 0.12rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--oxblood);
+  opacity: 0.75;
+}

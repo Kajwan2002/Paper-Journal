@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ensureShelf, type Notebook } from "@/lib/db";
 import { prime } from "@/lib/pageStore";
-import { rolloverToToday } from "@/lib/rollover";
+import { openLoops, rolloverToToday } from "@/lib/rollover";
+import { requestPersistence } from "@/lib/persist";
 import { todayKey } from "@/lib/date";
 import { useSession } from "@/state/session";
 import { useOverlay } from "@/state/overlay";
@@ -9,52 +10,103 @@ import { Desk } from "@/components/Desk";
 import { Book } from "@/components/Book";
 import { MonthJump } from "@/components/MonthJump";
 import { Search } from "@/components/Search";
+import { OpenLoops } from "@/components/OpenLoops";
+import { Settings } from "@/components/Settings";
+import "./app.css";
+
+type Boot =
+  | { state: "loading" }
+  | { state: "ready"; shelf: Notebook[] }
+  | { state: "failed"; error: string };
 
 export function App() {
-  const [shelf, setShelf] = useState<Notebook[] | null>(null);
+  const [boot, setBoot] = useState<Boot>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0);
+  const [loops, setLoops] = useState(0);
   const notebookId = useSession((s) => s.notebookId);
   const setNotebook = useSession((s) => s.setNotebook);
   const date = useSession((s) => s.date);
   const goToday = useSession((s) => s.goToday);
-  const monthOpen = useOverlay((s) => s.month);
-  const searchOpen = useOverlay((s) => s.search);
+  const overlay = useOverlay((s) => s.open);
   const closeOverlay = useOverlay((s) => s.close);
+
+  const countLoops = useCallback((id: string) => {
+    void openLoops(id).then((all) =>
+      setLoops(all.filter((l) => !l.line.someday).length),
+    );
+  }, []);
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      const notebooks = await ensureShelf();
-      if (!alive) return;
-      setShelf(notebooks);
-      const stillValid = notebooks.some((n) => n.id === notebookId);
-      const id = stillValid ? notebookId! : notebooks[0].id;
-      if (!stillValid) setNotebook(id);
-      await prime(id, todayKey());
-      void prime(id, date);
-      if (!alive) return;
-      await rolloverToToday(id);
+      try {
+        const notebooks = await ensureShelf();
+        if (!alive) return;
+        setBoot({ state: "ready", shelf: notebooks });
+        const stillValid = notebooks.some((n) => n.id === notebookId);
+        const id = stillValid ? notebookId! : notebooks[0].id;
+        if (!stillValid) setNotebook(id);
+        await prime(id, todayKey());
+        void prime(id, date);
+        if (!alive) return;
+        await rolloverToToday(id);
+        if (!alive) return;
+        countLoops(id);
+        void requestPersistence();
+      } catch (err) {
+        if (!alive) return;
+        setBoot({
+          state: "failed",
+          error:
+            err instanceof Error
+              ? err.message
+              : "The notebook couldn't be opened.",
+        });
+      }
     })();
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
 
-  // if the app was left open overnight, land on the new "today" and carry
-  // any unfinished tasks forward
+  // Land on the new "today" and carry unfinished tasks forward — whether the
+  // app was hidden overnight or simply left open on a desk. The timer is the
+  // half that used to be missing: a tab that stayed visible past midnight sat
+  // on yesterday until something else woke it.
   useEffect(() => {
-    const onShow = async () => {
-      if (document.hidden) return;
+    const catchUp = async () => {
       const id = useSession.getState().notebookId;
-      if (id && useSession.getState().date < todayKey()) {
-        goToday();
-        await prime(id, todayKey());
-        await rolloverToToday(id);
-      }
+      if (!id) return;
+      if (useSession.getState().date >= todayKey()) return;
+      goToday();
+      await prime(id, todayKey());
+      await rolloverToToday(id);
+      countLoops(id);
+    };
+
+    const onShow = () => {
+      if (!document.hidden) void catchUp();
     };
     document.addEventListener("visibilitychange", onShow);
-    return () => document.removeEventListener("visibilitychange", onShow);
-  }, [goToday]);
+
+    let timer: ReturnType<typeof setTimeout>;
+    const armMidnight = () => {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(24, 0, 5, 0); // just past midnight, local
+      timer = setTimeout(() => {
+        void catchUp();
+        armMidnight();
+      }, next.getTime() - now.getTime());
+    };
+    armMidnight();
+
+    return () => {
+      document.removeEventListener("visibilitychange", onShow);
+      clearTimeout(timer);
+    };
+  }, [goToday, countLoops]);
 
   // a global shortcut to search — Cmd/Ctrl+F, or a bare "/" when nothing typed
   useEffect(() => {
@@ -62,35 +114,89 @@ export function App() {
       const el = document.activeElement;
       const typing =
         el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+      const store = useOverlay.getState();
       if ((e.key === "f" || e.key === "F") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        useOverlay.getState().openSearch();
-      } else if (e.key === "/" && !typing && !useOverlay.getState().search) {
+        store.show("search");
+      } else if (e.key === "/" && !typing && store.open === null) {
         e.preventDefault();
-        useOverlay.getState().openSearch();
+        store.show("search");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const shelf = boot.state === "ready" ? boot.shelf : null;
   const current = shelf?.find((n) => n.id === notebookId) ?? shelf?.[0] ?? null;
+
+  // recount whenever an overlay closes — ticking something off in Open Loops
+  // or on the page should be reflected on the ribbon straight away
+  useEffect(() => {
+    if (overlay === null && current) countLoops(current.id);
+  }, [overlay, current, countLoops]);
+
+  const refreshShelf = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = useCallback(() => {
+    setBoot({ state: "loading" });
+    setAttempt((n) => n + 1);
+  }, []);
+
+  if (boot.state === "failed") {
+    return <Blocked error={boot.error} onRetry={retry} />;
+  }
 
   return (
     <>
-      <Desk>
+      <Desk loops={loops}>
         {current ? <Book key={current.id} notebook={current} /> : null}
       </Desk>
-      {current && monthOpen ? (
+      {current && overlay === "month" ? (
         <MonthJump
           notebookId={current.id}
           anchorDate={date}
           onClose={closeOverlay}
         />
       ) : null}
-      {current && searchOpen ? (
+      {current && overlay === "search" ? (
         <Search notebookId={current.id} onClose={closeOverlay} />
       ) : null}
+      {current && overlay === "loops" ? (
+        <OpenLoops notebookId={current.id} onClose={closeOverlay} />
+      ) : null}
+      {current && overlay === "settings" ? (
+        <Settings
+          notebook={current}
+          onChanged={refreshShelf}
+          onOpenNotebook={(id) => {
+            setNotebook(id);
+            refreshShelf();
+          }}
+          onClose={closeOverlay}
+        />
+      ) : null}
     </>
+  );
+}
+
+/** IndexedDB can be unavailable outright — private-mode Firefox, a locked
+ *  down WebView, storage pressure. Say so, instead of showing a bare desk
+ *  and an unhandled rejection in the console. */
+function Blocked({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="blocked">
+      <div className="blocked__card">
+        <h1 className="blocked__title">The notebook won't open</h1>
+        <p className="blocked__body">
+          Marginalia keeps everything in this browser's own storage, and this
+          browser wouldn't hand it over. Private browsing and blocked site data
+          are the usual reasons.
+        </p>
+        <p className="blocked__detail">{error}</p>
+        <button type="button" className="sheet__btn" onClick={onRetry}>
+          Try again
+        </button>
+      </div>
+    </div>
   );
 }

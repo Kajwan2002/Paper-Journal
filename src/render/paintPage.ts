@@ -182,7 +182,11 @@ export function paintPage(o: PagePaint): void {
 
   ctx.fillStyle = pal.ink;
   ctx.font = `500 ${w * 0.083}px ${DISPLAY}`;
-  ctx.fillText(clipText(ctx, longDate(date), w * 0.78), textX, bodyTop - h * 0.05);
+  ctx.fillText(
+    clipText(ctx, longDate(date), w * 0.78),
+    textX,
+    bodyTop - h * 0.05,
+  );
 
   // header underline
   ctx.strokeStyle = pal.rule;

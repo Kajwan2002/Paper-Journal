@@ -1,20 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { db } from "@/lib/db";
-import { prime } from "@/lib/pageStore";
-import {
-  addMonths,
-  isSameMonth,
-  isToday,
-  monthGrid,
-  monthTitle,
-  startOfMonth,
-  todayKey,
-  type DayKey,
-} from "@/lib/date";
+import { flushAsync, prime } from "@/lib/pageStore";
+import { isDue } from "@/lib/rapidlog";
+import { todayKey, type DayKey } from "@/lib/date";
 import { useSession } from "@/state/session";
+import { DayPicker, type DayMark } from "@/components/DayPicker";
+import { Sheet } from "@/components/Sheet";
 import "./month-jump.css";
-
-const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 
 interface Props {
   notebookId: string;
@@ -23,38 +15,42 @@ interface Props {
 }
 
 export function MonthJump({ notebookId, anchorDate, onClose }: Props) {
-  const [view, setView] = useState(() => startOfMonth(anchorDate));
-  const [written, setWritten] = useState<Set<DayKey>>(new Set());
+  const [marks, setMarks] = useState<Map<DayKey, DayMark>>(new Map());
   const goToDate = useSession((s) => s.goToDate);
-  const grid = useMemo(() => monthGrid(view), [view]);
 
-  useEffect(() => {
-    let alive = true;
-    const from = startOfMonth(view);
-    const to = addMonths(from, 1);
-    db.pages
-      .where("[notebookId+date]")
-      .between([notebookId, from], [notebookId, to], true, false)
-      .toArray()
-      .then((rows) => {
-        if (alive) setWritten(new Set(rows.map((r) => r.date)));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [notebookId, view]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
+  // Loaded for the 42 days actually on screen. It used to query only the
+  // calendar month, so the leading and trailing days of the grid always
+  // looked empty even when they had a page.
+  const loadRange = useCallback(
+    (from: DayKey, to: DayKey) => {
+      let alive = true;
+      void (async () => {
+        await flushAsync();
+        const rows = await db.pages
+          .where("[notebookId+date]")
+          .between([notebookId, from], [notebookId, to], true, true)
+          .toArray();
+        if (!alive) return;
+        const today = todayKey();
+        setMarks(
+          new Map(
+            rows.map((row) => [
+              row.date,
+              {
+                written: row.lines.some((l) => l.text.trim().length > 0),
+                open: row.lines.filter((l) => !l.carriedTo && isDue(l, today))
+                  .length,
+              },
+            ]),
+          ),
+        );
+      })();
+      return () => {
+        alive = false;
+      };
+    },
+    [notebookId],
+  );
 
   const pick = (day: DayKey) => {
     goToDate(day);
@@ -63,76 +59,23 @@ export function MonthJump({ notebookId, anchorDate, onClose }: Props) {
   };
 
   return (
-    <div
-      className="mjump__scrim"
-      onPointerDown={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="mjump" role="dialog" aria-label="Jump to a day">
-
-        <div className="mjump__head">
-          <button
-            type="button"
-            className="mjump__nav"
-            aria-label="Previous month"
-            onClick={() => setView(addMonths(view, -1))}
-          >
-            ‹
-          </button>
-          <span className="mjump__title">{monthTitle(view)}</span>
-          <button
-            type="button"
-            className="mjump__nav"
-            aria-label="Next month"
-            onClick={() => setView(addMonths(view, 1))}
-          >
-            ›
-          </button>
-        </div>
-
-        <div className="mjump__dow">
-          {DOW.map((d, i) => (
-            <span key={i}>{d}</span>
-          ))}
-        </div>
-
-        <div className="mjump__grid">
-          {grid.map((day) => {
-            const inMonth = isSameMonth(day, view);
-            const cls = [
-              "mjump__day",
-              inMonth ? "" : "mjump__day--spill",
-              isToday(day) ? "mjump__day--today" : "",
-              day === anchorDate ? "mjump__day--here" : "",
-              written.has(day) ? "mjump__day--dot" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-            return (
-              <button
-                type="button"
-                key={day}
-                className={cls}
-                onClick={() => pick(day)}
-              >
-                {Number(day.slice(8, 10))}
-              </button>
-            );
-          })}
-        </div>
-
-        {anchorDate !== todayKey() ? (
-          <button
-            type="button"
-            className="mjump__today"
-            onClick={() => pick(todayKey())}
-          >
-            · today ·
-          </button>
-        ) : null}
-      </div>
-    </div>
+    <Sheet label="Jump to a day" onClose={onClose}>
+      <DayPicker
+        value={anchorDate}
+        onPick={pick}
+        marks={marks}
+        onRangeChange={loadRange}
+        autoFocus
+      />
+      {anchorDate !== todayKey() ? (
+        <button
+          type="button"
+          className="mjump__today"
+          onClick={() => pick(todayKey())}
+        >
+          · today ·
+        </button>
+      ) : null}
+    </Sheet>
   );
 }

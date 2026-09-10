@@ -1,0 +1,96 @@
+.lmenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  min-width: 12.5rem;
+  margin-top: 0.2rem;
+  padding: 0.4rem;
+  display: grid;
+  gap: 1px;
+  background: var(--paper);
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-radius: 4px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 8px 22px -6px rgba(0, 0, 0, 0.28);
+  animation: lmenu-in 0.13s var(--ease-turn);
+}
+
+@keyframes lmenu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.lmenu__label {
+  margin: 0.15rem 0.5rem 0.2rem;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.lmenu__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.34rem 0.5rem;
+  text-align: left;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  color: var(--ink);
+  border-radius: 3px;
+  transition: background 0.12s ease;
+}
+.lmenu__item:hover,
+.lmenu__item:focus-visible {
+  background: color-mix(in srgb, var(--brass) 18%, transparent);
+}
+.lmenu__item--danger:hover,
+.lmenu__item--danger:focus-visible {
+  background: color-mix(in srgb, var(--oxblood) 16%, transparent);
+  color: var(--oxblood);
+}
+
+.lmenu__hint {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.lmenu__rule {
+  height: 0;
+  margin: 0.25rem 0.4rem;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+/* on a phone the menu is a sheet, not a dangling popover */
+@media (max-width: 680px) {
+  .lmenu {
+    position: fixed;
+    inset: auto 0 0 0;
+    margin: 0;
+    padding: 0.6rem 0.6rem calc(0.6rem + env(safe-area-inset-bottom));
+    border-radius: 10px 10px 0 0;
+    border-bottom: 0;
+    animation: lmenu-sheet 0.18s var(--ease-turn);
+  }
+  .lmenu__item {
+    padding: 0.62rem 0.7rem;
+    font-size: 1rem;
+  }
+}
+
+@keyframes lmenu-sheet {
+  from {
+    transform: translateY(100%);
+  }
+}

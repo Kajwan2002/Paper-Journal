@@ -1,4 +1,10 @@
-import { addDays, addMonths, nextWeekday, todayKey, type DayKey } from "@/lib/date";
+import {
+  addDays,
+  addMonths,
+  nextWeekday,
+  todayKey,
+  type DayKey,
+} from "@/lib/date";
 
 /** Quiet scheduling: you write "call mum friday" and the notebook files it
  *  for Friday without ever showing you a date picker.
@@ -11,13 +17,22 @@ import { addDays, addMonths, nextWeekday, todayKey, type DayKey } from "@/lib/da
  *  rearranges itself under the cursor. */
 
 const DOW: Record<string, number> = {
-  sunday: 0, sun: 0,
-  monday: 1, mon: 1,
-  tuesday: 2, tue: 2, tues: 2,
-  wednesday: 3, wed: 3,
-  thursday: 4, thu: 4, thurs: 4,
-  friday: 5, fri: 5,
-  saturday: 6, sat: 6,
+  sunday: 0,
+  sun: 0,
+  monday: 1,
+  mon: 1,
+  tuesday: 2,
+  tue: 2,
+  tues: 2,
+  wednesday: 3,
+  wed: 3,
+  thursday: 4,
+  thu: 4,
+  thurs: 4,
+  friday: 5,
+  fri: 5,
+  saturday: 6,
+  sat: 6,
 };
 
 /** Ordered: the first pattern that matches the tail of the line wins. */
@@ -54,7 +69,7 @@ export function parseDue(raw: string, on: DayKey = todayKey()): Scheduled {
   for (const [re, resolve] of RULES) {
     const m = text.match(re);
     if (!m) continue;
-    const rest = text.slice(0, m.index).replace(/[\s,·-]+$/, "");
+    const rest = text.slice(0, m.index).replace(/[\s,;:·\u2013\u2014-]+$/, "");
     // the phrase has to be qualifying something — a bare "tomorrow" is a note
     if (rest.trim().length === 0) return { text };
     return { text: rest, due: resolve(m, on) };
