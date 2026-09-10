@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Line } from "@/lib/rapidlog";
 import type { DayKey } from "@/lib/date";
+import { newId } from "@/lib/id";
 
 /** Local-first store. Everything lives on the device; a sync layer
  *  (CRDT + end-to-end encryption) slots in on top of this later. */
@@ -43,7 +44,10 @@ export function pageId(notebookId: string, date: DayKey): string {
 }
 
 /** Ensure there is at least one notebook and return the current shelf.
- *  Memoised so a StrictMode double-mount can't create two "Journal"s. */
+ *  Memoised so a StrictMode double-mount can't create two "Journal"s — but
+ *  the memo is dropped on failure, so a transient IndexedDB error (private
+ *  browsing, storage pressure, a blocked upgrade) can be retried instead of
+ *  being cached as a permanent blank desk. */
 let shelfPromise: Promise<Notebook[]> | null = null;
 export function ensureShelf(): Promise<Notebook[]> {
   if (!shelfPromise) {
@@ -51,7 +55,7 @@ export function ensureShelf(): Promise<Notebook[]> {
       const existing = await db.notebooks.orderBy("order").toArray();
       if (existing.length > 0) return existing;
       const first: Notebook = {
-        id: crypto.randomUUID(),
+        id: newId(),
         title: "Journal",
         cover: "oxblood",
         paper: "cream-lined",
@@ -61,8 +65,48 @@ export function ensureShelf(): Promise<Notebook[]> {
       await db.notebooks.add(first);
       return [first];
     });
+    shelfPromise.catch(() => {
+      shelfPromise = null;
+    });
   }
   return shelfPromise;
+}
+
+export async function updateNotebook(
+  id: string,
+  patch: Partial<Omit<Notebook, "id">>,
+): Promise<void> {
+  await db.notebooks.update(id, patch);
+}
+
+export async function addNotebook(
+  title: string,
+  cover: CoverStyle = "oxblood",
+  paper: PaperStyle = "cream-lined",
+): Promise<Notebook> {
+  const order = ((await db.notebooks.orderBy("order").last())?.order ?? -1) + 1;
+  const notebook: Notebook = {
+    id: newId(),
+    title: title.trim() || "Journal",
+    cover,
+    paper,
+    order,
+    createdAt: Date.now(),
+  };
+  await db.notebooks.add(notebook);
+  shelfPromise = null; // next read picks up the new shelf
+  return notebook;
+}
+
+/** Is IndexedDB actually usable here? Private-mode Firefox and some locked
+ *  down WebViews expose the API and then reject every transaction. */
+export async function probeStorage(): Promise<boolean> {
+  try {
+    await db.open();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getPage(

@@ -3,6 +3,7 @@
  *  quick-add tray, and the page understands it. */
 
 import type { DayKey } from "@/lib/date";
+import { newId } from "@/lib/id";
 
 export type LineKind =
   | "task"
@@ -28,21 +29,36 @@ export interface Line {
   /** stamped once rollover has forwarded this instance to a later day —
    *  its presence means "this is an old breadcrumb, not the live task" */
   carriedTo?: DayKey;
+  /** scheduled for a later day — by typing "friday", or from the move menu.
+   *  Until that day arrives the task sits quietly where you wrote it and is
+   *  not carried forward or nagged about. */
+  due?: DayKey;
+  /** parked indefinitely. Never carried forward; only Open Loops finds it. */
+  someday?: boolean;
 }
 
 export function isStruck(line: Pick<Line, "kind" | "struck">): boolean {
   return line.struck === true || line.kind === "done";
 }
 
-/** kinds that count as an open, unfinished commitment worth carrying forward */
-export function isOpenTask(line: Line): boolean {
+/** kinds that carry a commitment, whether or not it is due yet */
+export function isTaskKind(line: Line): boolean {
   return (
-    (line.kind === "task" ||
-      line.kind === "priority" ||
-      line.kind === "migrated") &&
-    !isStruck(line) &&
-    line.text.trim().length > 0
+    line.kind === "task" || line.kind === "priority" || line.kind === "migrated"
   );
+}
+
+/** An unfinished commitment: a task-ish line with text that is not struck
+ *  out. Says nothing about *when* — see `isDue`. */
+export function isOpenTask(line: Line): boolean {
+  return isTaskKind(line) && !isStruck(line) && line.text.trim().length > 0;
+}
+
+/** An open task that is actually asking for attention today: not parked in
+ *  someday, and either unscheduled or scheduled for today or earlier. */
+export function isDue(line: Line, on: DayKey): boolean {
+  if (!isOpenTask(line) || line.someday) return false;
+  return !line.due || line.due <= on;
 }
 
 /** Glyph shown in the margin for each kind. */
@@ -97,7 +113,14 @@ export function tapSignifier(line: Line): Line {
   if (line.kind === "idea" && !isStruck(line)) {
     return { ...line, kind: "task" };
   }
-  return { ...line, kind: line.kind === "done" ? "task" : line.kind, struck: !isStruck(line) };
+  const struck = !isStruck(line);
+  return {
+    ...line,
+    kind: line.kind === "done" ? "task" : line.kind,
+    struck,
+    // finishing something retires its schedule and its nag count
+    ...(struck ? { due: undefined, someday: undefined, rolls: 0 } : {}),
+  };
 }
 
 export function newLine(
@@ -105,5 +128,5 @@ export function newLine(
   text = "",
   indent: 0 | 1 = 0,
 ): Line {
-  return { id: crypto.randomUUID(), kind, text, indent };
+  return { id: newId(), kind, text, indent };
 }

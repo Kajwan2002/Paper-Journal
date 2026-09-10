@@ -11,9 +11,17 @@ const listeners = new Map<string, Set<() => void>>();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 const inflight = new Map<string, Promise<void>>();
 const meta = new Map<string, { notebookId: string; date: DayKey }>();
+const revisions = new Map<string, number>();
 
 function emit(key: string): void {
   listeners.get(key)?.forEach((fn) => fn());
+}
+
+/** Bumped on every local edit. Rollover captures these before its awaits and
+ *  re-checks them afterwards, so a sentence typed *while* it is rewriting
+ *  pages can never be silently overwritten. */
+export function revision(key: string): number {
+  return revisions.get(key) ?? 0;
 }
 
 export function subscribe(key: string, fn: () => void): () => void {
@@ -58,6 +66,7 @@ export function writeLines(
   const key = pageId(notebookId, date);
   meta.set(key, { notebookId, date });
   cache.set(key, lines);
+  revisions.set(key, revision(key) + 1);
   emit(key);
 
   const t = timers.get(key);
@@ -73,13 +82,27 @@ export function writeLines(
 
 /** Write every pending debounced page immediately. Safe to call any time. */
 export function flush(): void {
+  void flushAsync();
+}
+
+/** `flush`, but you can wait for the writes to land. Anything that reads
+ *  Dexie directly — search, export — must await this first, or it reads a
+ *  journal that is up to half a second out of date. */
+export function flushAsync(): Promise<void> {
+  const writes: Array<Promise<void>> = [];
   for (const [key, t] of timers) {
     clearTimeout(t);
     const m = meta.get(key);
     const lines = cache.get(key);
-    if (m && lines) void savePage(m.notebookId, m.date, lines);
+    if (m && lines) writes.push(savePage(m.notebookId, m.date, lines));
   }
   timers.clear();
+  return Promise.all(writes).then(() => undefined);
+}
+
+/** True while any page has an unwritten edit. */
+export function hasPendingWrites(): boolean {
+  return timers.size > 0;
 }
 
 /** Replace the cached lines for a day that has *already been persisted*
