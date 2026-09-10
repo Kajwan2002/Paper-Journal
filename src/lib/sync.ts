@@ -15,7 +15,13 @@ import { BACKUP_FORMAT, type Backup } from "@/lib/backup";
  *
  *  Deliberately unhurried: this is a journal, not a chat. It syncs when the
  *  app opens, a few seconds after you stop typing, when you switch away, and
- *  on a slow poll while it is open. */
+ *  on a slow poll while it is open. The push half is skipped whenever there
+ *  is nothing to say — the content matches what was last sent, and nothing
+ *  new was pulled — so an idle device sitting open just costs a single
+ *  read. Gists sit behind a tight write-rate limit, and a device doing
+ *  nothing still has several ways to call this (the poll, a tab switch, a
+ *  screen lock) that used to each cost a write regardless of whether
+ *  anything had actually changed. */
 
 const IDLE_PUSH_MS = 4000;
 const POLL_MS = 90_000;
@@ -24,6 +30,14 @@ let running: Promise<void> | null = null;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let stopWatching: (() => void) | null = null;
+/** the content of the last snapshot actually sent, so a pass can tell
+ *  whether there is anything new to push without a flag that has to be
+ *  remembered to set from every place the journal can change — title,
+ *  cover, and paper are edited straight against Dexie and never touch the
+ *  page store, so a flag wired only to page writes would miss them, and
+ *  miss the very first push after pairing. Comparing the real content
+ *  can't miss anything by construction. */
+let lastPushed: string | null = null;
 
 function refOf(config: SyncConfig): GistRef {
   return { id: config.gistId, token: config.token };
@@ -124,9 +138,14 @@ async function reconcileNotebooks(
   return adopt;
 }
 
-/** One full pass. Safe to call whenever; overlapping calls share the run. */
+/** One full pass. Safe to call whenever; overlapping calls share the run
+ *  rather than starting a second one, which is what actually protects
+ *  against a burst — several near-simultaneous triggers (an edit, then
+ *  switching apps, then the phone locking) collapse into whichever single
+ *  pass is in flight. */
 export function syncNow(): Promise<void> {
   if (running) return running;
+
   const { config, setPhase, setSynced } = useSync.getState();
   if (!config) return Promise.resolve();
 
@@ -136,7 +155,7 @@ export function syncNow(): Promise<void> {
       const key = await importKey(config.key);
       const ref = refOf(config);
 
-      // pull
+      // pull — always, since only GitHub knows what the other device pushed
       const { content } = await readGist(ref);
       let pulledChanged = false;
       if (content && content.trim()) {
@@ -153,9 +172,19 @@ export function syncNow(): Promise<void> {
         }
       }
 
-      // push the merged result back
+      // push only when there is something to say: the content differs from
+      // what was last sent (covers a real edit, a title/cover/paper change,
+      // and the very first push after pairing, since lastPushed starts
+      // null) — or a merge landed that the other side needs to see
       const mine = await localSnapshot();
-      await writeGist(ref, await encrypt(key, JSON.stringify(mine)));
+      const signature = JSON.stringify({
+        notebooks: mine.notebooks,
+        pages: mine.pages,
+      });
+      if (pulledChanged || signature !== lastPushed) {
+        await writeGist(ref, await encrypt(key, JSON.stringify(mine)));
+        lastPushed = signature;
+      }
 
       setSynced(Date.now());
       if (pulledChanged) {
@@ -215,11 +244,17 @@ export function stopSync(): void {
   document.removeEventListener("visibilitychange", onVisibility);
   window.removeEventListener("pagehide", onLeave);
   window.removeEventListener("online", onLeave);
+  // a later reconnect may point at a different gist entirely (the escape
+  // hatch makes a fresh one); never let a stale signature skip its first
+  // push and leave it looking empty
+  lastPushed = null;
 }
 
+/** Only on becoming visible again — leaving is already covered by
+ *  `pagehide`, and firing on both edges of the same toggle used to double
+ *  every tab switch and screen lock into two calls instead of one. */
 function onVisibility(): void {
   if (!document.hidden) void syncNow();
-  else void syncNow();
 }
 
 function onLeave(): void {
