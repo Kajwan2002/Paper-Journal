@@ -11,6 +11,8 @@ interface Props {
   /** the ⋯ button this menu hangs off, in viewport coordinates */
   anchor: DOMRect | null;
   onPatch: (change: (line: Line) => Line) => void;
+  /** file this line onto another day — it moves there, leaving a breadcrumb */
+  onMove: (day: DayKey) => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -32,13 +34,16 @@ export function LineMenu({
   date,
   anchor,
   onPatch,
+  onMove,
   onDelete,
   onClose,
 }: Props) {
   const [picking, setPicking] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const scheduled = !!line.due || !!line.someday;
-  const task = isTaskKind(line);
+  // a breadcrumb is a record of where something went, not a live task —
+  // there is nothing to reschedule
+  const task = isTaskKind(line) && !line.carriedTo;
 
   // phones get a bottom sheet; anything roomier gets a popover by the line
   const [sheet, setSheet] = useState(
@@ -92,8 +97,7 @@ export function LineMenu({
     };
   }, [onClose]);
 
-  const moveTo = (day: DayKey) =>
-    onPatch((l) => ({ ...l, due: day, someday: undefined, rolls: 0 }));
+  const moveTo = (day: DayKey) => onMove(day);
 
   const soon: Array<[string, DayKey]> = [
     ["Tomorrow", addDays(date, 1)],

@@ -6,8 +6,13 @@ import { rolloverToToday } from "@/lib/rollover";
 import { newLine } from "@/lib/rapidlog";
 import { todayKey, addDays } from "@/lib/date";
 
-/** The life of a task scheduled for a specific day, walked one day at a
- *  time — what shows where, and when. */
+/** The `due` fallback, walked one day at a time.
+ *
+ *  Filing a task for a later day *moves* it there now — see
+ *  schedule-move.test.ts. This covers the older shape, where a task stayed
+ *  where it was written carrying a `due` stamp: journals written before the
+ *  change still contain those, and rollover has to keep honouring them
+ *  until `settleLegacySchedules` has walked them onto their day. */
 
 const NB = "nb-sched";
 const T0 = todayKey();
@@ -25,7 +30,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("a task scheduled for a day ten days out", () => {
+describe("a legacy task stamped for a day ten days out", () => {
   beforeEach(async () => {
     const line = { ...newLine("priority", "Hii"), due: TARGET };
     await db.pages.put({

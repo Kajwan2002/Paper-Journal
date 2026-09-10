@@ -16,8 +16,10 @@ interface Props {
 
 type Bucket = "due" | "later" | "someday";
 
-function bucketOf(line: Line, today: DayKey): Bucket {
+function bucketOf(line: Line, date: DayKey, today: DayKey): Bucket {
   if (line.someday) return "someday";
+  // filed for a later day means it is sitting on that day's page
+  if (date > today) return "later";
   if (line.due && line.due > today) return "later";
   return "due";
 }
@@ -70,7 +72,7 @@ export function OpenLoops({ notebookId, onClose }: Props) {
   const grouped = new Map<Bucket, Loop[]>(
     buckets.map((b) => [
       b,
-      (loops ?? []).filter((l) => bucketOf(l.line, today) === b),
+      (loops ?? []).filter((l) => bucketOf(l.line, l.date, today) === b),
     ]),
   );
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ensureShelf, type Notebook } from "@/lib/db";
 import { prime, subscribeJournal } from "@/lib/pageStore";
 import { openLoops, rolloverToToday } from "@/lib/rollover";
+import { settleLegacySchedules } from "@/lib/schedule";
 import { requestPersistence } from "@/lib/persist";
 import { todayKey } from "@/lib/date";
 import { useSession } from "@/state/session";
@@ -58,6 +59,11 @@ export function App() {
         void prime(id, landOn);
         if (!alive) return;
         await rolloverToToday(id);
+        if (!alive) return;
+        // journals written before scheduling moved anything still have
+        // tasks stamped with a date but sitting on the day they were
+        // written — walk them onto their day so the week ahead reads right
+        await settleLegacySchedules(id);
         if (!alive) return;
         countLoops(id);
         void requestPersistence();

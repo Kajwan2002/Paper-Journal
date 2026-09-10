@@ -18,6 +18,7 @@ import {
 } from "@/lib/rapidlog";
 import { parseDue } from "@/lib/nldate";
 import { setStruckAcrossChain } from "@/lib/chain";
+import { moveLineTo } from "@/lib/schedule";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { NAG_CAP } from "@/lib/rollover";
 import { useQuickAdd } from "@/state/quickadd";
@@ -147,10 +148,13 @@ export function RuledLines({
    *  the text never rearranges itself under the cursor mid-word. */
   const settleLine = (id: string) => {
     const line = rowsRef.current.find((l) => l.id === id);
-    if (!line || !isTaskKind(line) || line.due || line.someday) return;
+    if (!line || !isTaskKind(line) || line.carriedTo || line.someday) return;
     const { text, due } = parseDue(line.text, date);
     if (!due) return;
-    patch(id, (l) => ({ ...l, text, due }));
+    // strip the date word first, then file the line onto that day
+    const named = { ...line, text };
+    patch(id, () => named);
+    void moveLineTo(notebookId, date, named, due);
   };
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>, id: string) => {
@@ -387,6 +391,10 @@ export function RuledLines({
                 onPatch={(change) => {
                   patch(line.id, change);
                   setMenu(null);
+                }}
+                onMove={(day) => {
+                  setMenu(null);
+                  void moveLineTo(notebookId, date, line, day);
                 }}
                 onDelete={() => removeLine(line.id)}
               />
