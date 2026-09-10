@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addNotebook,
+  deleteNotebook,
   listNotebooks,
   pageCount,
   updateNotebook,
@@ -54,11 +55,25 @@ export function Settings({
   const [safe, setSafe] = useState<boolean | null>(null);
   const [disk, setDisk] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [pages, setPages] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadShelf = useCallback(() => {
     void listNotebooks().then(setShelf);
   }, []);
+
+  useEffect(() => {
+    void pageCount(notebook.id).then(setPages);
+  }, [notebook.id]);
+
+  // switching notebooks must never leave a "delete it?" armed against the
+  // one you just moved to — React's adjust-state-during-render pattern
+  const [armedFor, setArmedFor] = useState(notebook.id);
+  if (armedFor !== notebook.id) {
+    setArmedFor(notebook.id);
+    setConfirming(false);
+  }
 
   useEffect(() => {
     loadShelf();
@@ -251,6 +266,58 @@ export function Settings({
             </p>
           ) : null}
         </fieldset>
+
+        {shelf.length > 1 ? (
+          <fieldset className="set__group">
+            <legend className="set__label">Bin this notebook</legend>
+            {confirming ? (
+              <>
+                <p className="set__note set__note--warn">
+                  Delete “{notebook.title}” and the{" "}
+                  {pages === 1 ? "one page" : `${pages ?? 0} pages`} written in
+                  it? This cannot be undone — export first if you want a copy.
+                </p>
+                <div className="set__row">
+                  <button
+                    type="button"
+                    className="sheet__btn sheet__btn--danger"
+                    onClick={() =>
+                      void deleteNotebook(notebook.id).then((gone) => {
+                        if (!gone) {
+                          setNote(
+                            "That's the only notebook — nothing to fall back to.",
+                          );
+                          setConfirming(false);
+                          return;
+                        }
+                        const next = shelf.find((n) => n.id !== notebook.id);
+                        if (next) onOpenNotebook(next.id);
+                        onChanged();
+                      })
+                    }
+                  >
+                    Delete it
+                  </button>
+                  <button
+                    type="button"
+                    className="sheet__btn"
+                    onClick={() => setConfirming(false)}
+                  >
+                    Keep it
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="sheet__btn sheet__btn--danger"
+                onClick={() => setConfirming(true)}
+              >
+                Delete notebook
+              </button>
+            )}
+          </fieldset>
+        ) : null}
       </div>
     </Sheet>
   );

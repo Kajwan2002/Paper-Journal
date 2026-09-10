@@ -37,6 +37,18 @@
   --page-max: 30rem;
   --radius-page: 3px 10px 10px 3px;
   --ease-turn: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* desk furniture — the quick-add tray and the corner controls.
+     These used to be emboss-on-desk in both themes, which on the light desk
+     is tan on tan: the nibs and buttons were barely legible. Given their own
+     tokens so each theme can carry real contrast. */
+  --furniture-ink: #4a4034;
+  --furniture-ink-hi: #241d16;
+  --furniture-bg: rgba(255, 252, 244, 0.72);
+  --furniture-edge: rgba(60, 48, 34, 0.22);
+  --furniture-edge-hi: rgba(60, 48, 34, 0.45);
+  --furniture-priority: #8f3a45;
+  --furniture-event: #35604a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,6 +73,14 @@
     --leather-hi: #5a2c30;
     --leather-lo: #26100f;
     --emboss: #c7a274;
+
+    --furniture-ink: #d8cdb6;
+    --furniture-ink-hi: #f6efdd;
+    --furniture-bg: rgba(28, 23, 18, 0.78);
+    --furniture-edge: rgba(199, 162, 116, 0.26);
+    --furniture-edge-hi: rgba(199, 162, 116, 0.55);
+    --furniture-priority: #e39aa2;
+    --furniture-event: #93bb9d;
   }
 }
 
@@ -85,4 +105,12 @@
   --leather-hi: #5a2c30;
   --leather-lo: #26100f;
   --emboss: #c7a274;
+
+  --furniture-ink: #d8cdb6;
+  --furniture-ink-hi: #f6efdd;
+  --furniture-bg: rgba(28, 23, 18, 0.78);
+  --furniture-edge: rgba(199, 162, 116, 0.26);
+  --furniture-edge-hi: rgba(199, 162, 116, 0.55);
+  --furniture-priority: #e39aa2;
+  --furniture-event: #93bb9d;
 }

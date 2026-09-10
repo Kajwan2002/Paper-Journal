@@ -107,6 +107,20 @@ export function listNotebooks(): Promise<Notebook[]> {
   return db.notebooks.orderBy("order").toArray();
 }
 
+/** Bin a notebook and everything written in it.
+ *
+ *  Destructive and unrecoverable, so the caller confirms first and the
+ *  settings sheet offers an export right beside it. Refuses to remove the
+ *  last notebook — an empty shelf has nowhere to land. */
+export async function deleteNotebook(id: string): Promise<boolean> {
+  return db.transaction("rw", db.notebooks, db.pages, async () => {
+    if ((await db.notebooks.count()) <= 1) return false;
+    await db.pages.where("notebookId").equals(id).delete();
+    await db.notebooks.delete(id);
+    return true;
+  });
+}
+
 export function pageCount(notebookId: string): Promise<number> {
   return db.pages.where("notebookId").equals(notebookId).count();
 }

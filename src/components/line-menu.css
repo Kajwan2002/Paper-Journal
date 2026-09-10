@@ -1,10 +1,11 @@
 .lmenu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 20;
+  position: fixed;
+  z-index: 70;
   min-width: 12.5rem;
-  margin-top: 0.2rem;
+  max-width: min(19rem, calc(100vw - 1rem));
+  max-height: calc(100dvh - 1rem);
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 0.4rem;
   display: grid;
   gap: 1px;
@@ -13,7 +14,7 @@
   border-radius: 4px;
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.1),
-    0 8px 22px -6px rgba(0, 0, 0, 0.28);
+    0 10px 30px -6px rgba(0, 0, 0, 0.38);
   animation: lmenu-in 0.13s var(--ease-turn);
 }
 
@@ -73,19 +74,32 @@
 }
 
 /* on a phone the menu is a sheet, not a dangling popover */
-@media (max-width: 680px) {
-  .lmenu {
-    position: fixed;
-    inset: auto 0 0 0;
-    margin: 0;
-    padding: 0.6rem 0.6rem calc(0.6rem + env(safe-area-inset-bottom));
-    border-radius: 10px 10px 0 0;
-    border-bottom: 0;
-    animation: lmenu-sheet 0.18s var(--ease-turn);
-  }
-  .lmenu__item {
-    padding: 0.62rem 0.7rem;
-    font-size: 1rem;
+.lmenu--sheet {
+  inset: auto 0 0 0;
+  max-width: none;
+  max-height: 80dvh;
+  padding: 0.6rem 0.6rem calc(0.6rem + env(safe-area-inset-bottom));
+  border-radius: 10px 10px 0 0;
+  border-bottom: 0;
+  animation: lmenu-sheet 0.18s var(--ease-turn);
+}
+.lmenu--sheet .lmenu__item {
+  padding: 0.62rem 0.7rem;
+  font-size: 1rem;
+}
+
+/* the sheet needs something behind it — over paper it was invisible */
+.lmenu__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 69;
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+  animation: lmenu-scrim 0.16s ease;
+}
+
+@keyframes lmenu-scrim {
+  from {
+    opacity: 0;
   }
 }
 

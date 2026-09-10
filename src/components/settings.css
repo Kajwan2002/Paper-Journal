@@ -107,3 +107,13 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.set__note--warn {
+  color: var(--oxblood);
+}
+
+.set__group .sheet__btn--danger {
+  justify-self: start;
+  color: var(--oxblood);
+  border-color: color-mix(in srgb, var(--oxblood) 35%, transparent);
+}

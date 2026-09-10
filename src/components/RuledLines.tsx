@@ -39,7 +39,9 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
   const setFocusId = (id: string) => {
     wantFocus.current = id;
   };
-  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ id: string; anchor: DOMRect } | null>(
+    null,
+  );
 
   // One stable blank row for an empty page. Minting a fresh line (and a
   // fresh id) inline on every render remounted the <input> whenever anything
@@ -198,7 +200,7 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
     commit(rowsRef.current.filter((l) => l.id !== id));
     const before = rowsRef.current[idx - 1];
     if (before) setFocusId(before.id);
-    setMenuFor(null);
+    setMenu(null);
   };
 
   // --- drag to reorder ----------------------------------------------
@@ -256,7 +258,7 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
             key={line.id}
             className={`ruled__row ruled__row--${line.kind} ${
               drag?.id === line.id ? "ruled__row--drag" : ""
-            } ${menuFor === line.id ? "ruled__row--menu" : ""}`}
+            } ${menu?.id === line.id ? "ruled__row--menu" : ""}`}
             data-indent={line.indent ?? 0}
             data-rolls={Math.min(line.rolls ?? 0, NAG_CAP)}
             data-struck={struck ? "1" : "0"}
@@ -313,9 +315,16 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
                 className="ruled__tool"
                 aria-label={`Options for: ${line.text || "empty line"}`}
                 aria-haspopup="menu"
-                aria-expanded={menuFor === line.id}
-                onClick={() =>
-                  setMenuFor((m) => (m === line.id ? null : line.id))
+                aria-expanded={menu?.id === line.id}
+                onClick={(e) =>
+                  setMenu((m) =>
+                    m?.id === line.id
+                      ? null
+                      : {
+                          id: line.id,
+                          anchor: e.currentTarget.getBoundingClientRect(),
+                        },
+                  )
                 }
               >
                 ⋯
@@ -336,14 +345,15 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
               ) : null}
             </div>
 
-            {menuFor === line.id ? (
+            {menu?.id === line.id ? (
               <LineMenu
                 line={line}
                 date={date}
-                onClose={() => setMenuFor(null)}
+                anchor={menu.anchor}
+                onClose={() => setMenu(null)}
                 onPatch={(change) => {
                   patch(line.id, change);
-                  setMenuFor(null);
+                  setMenu(null);
                 }}
                 onDelete={() => removeLine(line.id)}
               />

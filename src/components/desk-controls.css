@@ -14,9 +14,9 @@
   place-items: center;
   font-family: var(--mono);
   font-size: 0.95rem;
-  color: color-mix(in srgb, var(--emboss) 80%, transparent);
-  background: color-mix(in srgb, var(--desk-deep) 60%, transparent);
-  border: 1px solid color-mix(in srgb, var(--emboss) 20%, transparent);
+  color: var(--furniture-ink);
+  background: var(--furniture-bg);
+  border: 1px solid var(--furniture-edge);
   border-radius: 999px;
   backdrop-filter: blur(3px);
   transition:
@@ -24,7 +24,8 @@
     transform 0.12s ease;
 }
 .deskctl__btn:hover {
-  color: var(--emboss);
+  color: var(--furniture-ink-hi);
+  border-color: var(--furniture-edge-hi);
 }
 .deskctl__btn:active {
   transform: scale(0.9);
