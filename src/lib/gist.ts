@@ -29,26 +29,65 @@ async function call(
       ...init.headers,
     },
   });
-  if (res.status === 401) throw new Error("GitHub rejected that token.");
-  if (res.status === 403) {
-    throw new Error(
-      "GitHub refused the request — the token may be missing gist access.",
+  if (res.ok) return res;
+  throw new Error(await explainFailure(res));
+}
+
+/** GitHub answers 403 for several unrelated things, and guessing between
+ *  them wastes the reader's afternoon. Read what it actually said. */
+async function explainFailure(res: Response): Promise<string> {
+  let detail = "";
+  try {
+    const body = (await res.clone().json()) as { message?: string };
+    detail = body?.message ?? "";
+  } catch {
+    /* not JSON; the status is all we have */
+  }
+
+  if (res.status === 401) {
+    return "GitHub rejected the token — it may have expired or been revoked. Use “Replace token” to paste a new one.";
+  }
+
+  if (res.status === 403 || res.status === 429) {
+    const remaining = res.headers.get("x-ratelimit-remaining");
+    const reset = res.headers.get("x-ratelimit-reset");
+    if (remaining === "0" && reset) {
+      const when = new Date(Number(reset) * 1000);
+      return `GitHub is rate limiting this token until ${when.toLocaleTimeString()} — it usually means something else is using the same token hard. Sync will resume by itself.`;
+    }
+    if (/secondary rate/i.test(detail)) {
+      return "GitHub is throttling writes on this token — often because another app is sharing it. Sync will resume by itself shortly.";
+    }
+    return (
+      "GitHub refused this token access to gists. Fine-grained tokens cannot touch gists at all — it has to be a classic token with the “gist” scope. Use “Replace token” to paste one." +
+      (detail ? ` (GitHub said: ${detail})` : "")
     );
   }
-  return res;
+
+  if (res.status === 404) {
+    return "That journal gist is gone, or this token can't see it.";
+  }
+
+  return detail
+    ? `GitHub said ${res.status}: ${detail}`
+    : `GitHub said ${res.status}.`;
 }
 
 export async function whoami(token: string): Promise<string> {
   const res = await call(token, "/user");
-  if (!res.ok) throw new Error(`GitHub said ${res.status}.`);
   return ((await res.json()) as { login: string }).login;
+}
+
+/** Does this token actually have gist access? `/user` succeeds for tokens
+ *  that can do nothing else, so setup used to look fine and fail later. */
+export async function canUseGists(token: string): Promise<void> {
+  await call(token, "/gists?per_page=1");
 }
 
 /** Find the journal gist this account already has, if any — so the second
  *  device doesn't create a rival copy. */
 export async function findGist(token: string): Promise<string | null> {
   const res = await call(token, "/gists?per_page=100");
-  if (!res.ok) throw new Error(`GitHub said ${res.status}.`);
   const gists = (await res.json()) as Array<{
     id: string;
     files: Record<string, unknown>;
@@ -68,7 +107,6 @@ export async function createGist(
       files: { [FILENAME]: { content } },
     }),
   });
-  if (!res.ok) throw new Error(`Couldn't create the gist (${res.status}).`);
   return ((await res.json()) as { id: string }).id;
 }
 
@@ -79,8 +117,6 @@ export interface GistRead {
 
 export async function readGist(ref: GistRef): Promise<GistRead> {
   const res = await call(ref.token, `/gists/${ref.id}`);
-  if (res.status === 404) throw new Error("That journal gist is gone.");
-  if (!res.ok) throw new Error(`GitHub said ${res.status}.`);
   const gist = (await res.json()) as {
     updated_at: string;
     files: Record<
@@ -108,6 +144,5 @@ export async function writeGist(
     method: "PATCH",
     body: JSON.stringify({ files: { [FILENAME]: { content } } }),
   });
-  if (!res.ok) throw new Error(`Couldn't save to the gist (${res.status}).`);
   return ((await res.json()) as { updated_at: string }).updated_at;
 }

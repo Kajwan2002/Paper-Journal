@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
 import { useSync } from "@/state/sync";
-import { connectWithToken, makeSyncCode, readSyncCode } from "@/lib/pairing";
+import {
+  connectWithToken,
+  makeSyncCode,
+  NeedsSyncCode,
+  readSyncCode,
+  replaceToken,
+} from "@/lib/pairing";
 import { startSync, stopSync, syncNow } from "@/lib/sync";
 import "./sync.css";
 
 const TOKEN_URL =
   "https://github.com/settings/tokens/new?scopes=gist&description=Marginalia%20sync";
 
-type Pane = "closed" | "first" | "join" | "code";
+type Pane = "closed" | "first" | "join" | "code" | "token";
 
 function ago(at: number): string {
   const secs = Math.round((Date.now() - at) / 1000);
@@ -38,6 +44,9 @@ export function Sync() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // set only when the account already has a journal we have no key for —
+  // offers the disaster-recovery escape hatch instead of a dead end
+  const [stranded, setStranded] = useState(false);
 
   useEffect(() => {
     if (!copied) return;
@@ -45,17 +54,23 @@ export function Sync() {
     return () => clearTimeout(t);
   }, [copied]);
 
-  const start = async () => {
+  const start = async (force = false) => {
     setBusy(true);
     setNote(null);
     try {
-      const next = await connectWithToken(token);
+      const next = await connectWithToken(token, { force });
       connect(next);
       setToken("");
+      setStranded(false);
       setPane("code");
       startSync();
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "Couldn't connect.");
+      if (err instanceof NeedsSyncCode) {
+        setStranded(true);
+        setNote(err.message);
+      } else {
+        setNote(err instanceof Error ? err.message : "Couldn't connect.");
+      }
     } finally {
       setBusy(false);
     }
@@ -71,6 +86,23 @@ export function Sync() {
       startSync();
     } catch (err) {
       setNote(err instanceof Error ? err.message : "Couldn't read that code.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const swapToken = async () => {
+    if (!config) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      connect(await replaceToken(config, token));
+      setToken("");
+      setPane("closed");
+      setNote("Token replaced.");
+      startSync();
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Couldn't use that token.");
     } finally {
       setBusy(false);
     }
@@ -124,6 +156,32 @@ export function Sync() {
           </>
         ) : null}
 
+        {pane === "token" ? (
+          <>
+            <p className="set__note">
+              Paste a fresh token. The journal and its key are kept, so this
+              can't strand the synced copy — and it leaves any token another app
+              is using alone.
+            </p>
+            <input
+              className="set__input"
+              type="password"
+              placeholder="ghp_…"
+              autoComplete="off"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+            />
+            <p className="set__note">
+              <a href={TOKEN_URL} target="_blank" rel="noreferrer">
+                Make one here
+              </a>{" "}
+              — a <strong>classic</strong> token with “gist” ticked. Give this
+              app its own rather than sharing one, or regenerating it for
+              something else breaks sync again.
+            </p>
+          </>
+        ) : null}
+
         <div className="set__row">
           <button
             type="button"
@@ -132,6 +190,27 @@ export function Sync() {
           >
             Sync now
           </button>
+          {pane === "token" ? (
+            <button
+              type="button"
+              className="sheet__btn"
+              disabled={busy || !token.trim()}
+              onClick={() => void swapToken()}
+            >
+              {busy ? "Checking…" : "Use this token"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="sheet__btn"
+              onClick={() => {
+                setNote(null);
+                setPane("token");
+              }}
+            >
+              Replace token
+            </button>
+          )}
           <button
             type="button"
             className="sheet__btn"
@@ -156,9 +235,15 @@ export function Sync() {
             Disconnect
           </button>
         </div>
+        {note ? (
+          <p className="sync__warn" role="status">
+            {note}
+          </p>
+        ) : null}
         <p className="set__note">
           Disconnecting stops syncing on this device only. Your journal stays
-          here, and the copy on GitHub stays there.
+          here, and the copy on GitHub stays there — but it also forgets the key
+          that reads it, so for a token problem use “Replace token”.
         </p>
       </fieldset>
     );
@@ -224,11 +309,33 @@ export function Sync() {
             <button
               type="button"
               className="sheet__btn"
-              onClick={() => setPane("closed")}
+              onClick={() => {
+                setPane("closed");
+                setStranded(false);
+                setNote(null);
+              }}
             >
               Cancel
             </button>
           </div>
+          {stranded ? (
+            <>
+              <p className="sync__warn">
+                Only use this if no other device can give you a sync code
+                anymore — check one more time first. The old journal on GitHub
+                is left alone, just unreachable; nothing on this device is at
+                risk either way.
+              </p>
+              <button
+                type="button"
+                className="sheet__btn sheet__btn--danger"
+                disabled={busy || !token.trim()}
+                onClick={() => void start(true)}
+              >
+                Start a fresh synced journal
+              </button>
+            </>
+          ) : null}
         </>
       ) : null}
 

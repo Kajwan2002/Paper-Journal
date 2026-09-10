@@ -1,4 +1,4 @@
-import { createGist, findGist, whoami } from "@/lib/gist";
+import { canUseGists, createGist, findGist, whoami } from "@/lib/gist";
 import { BACKUP_FORMAT } from "@/lib/backup";
 import { encrypt, exportKey, makeKey } from "@/lib/crypto";
 import { fromBase64, toBase64 } from "@/lib/crypto";
@@ -58,13 +58,27 @@ export class NeedsSyncCode extends Error {
  *
  *  If the account already has one we stop rather than making a second — a
  *  rival gist would quietly split the journal in two, and the key for the
- *  first one only exists on the device that made it. */
-export async function connectWithToken(token: string): Promise<SyncConfig> {
+ *  first one only exists on the device that made it.
+ *
+ *  `force` skips that check and makes a new gist anyway. It exists for the
+ *  disaster case: every device that ever held the old key has been
+ *  disconnected, so the old gist is permanently unreadable ciphertext and
+ *  there is nothing left to protect. The old gist is not touched — it just
+ *  sits there orphaned — and every device has to re-pair against the new
+ *  one afterward. Local journals are never at risk either way; sync only
+ *  ever merges into them, so this can lose reach, not writing. */
+export async function connectWithToken(
+  token: string,
+  options: { force?: boolean } = {},
+): Promise<SyncConfig> {
   const clean = token.trim();
   if (!clean) throw new Error("Paste a GitHub token first.");
   const login = await whoami(clean);
+  // `/user` answers for tokens that can do nothing else, so setup used to
+  // succeed and sync fail minutes later. Prove gist access up front.
+  await canUseGists(clean);
 
-  if (await findGist(clean)) throw new NeedsSyncCode();
+  if (!options.force && (await findGist(clean))) throw new NeedsSyncCode();
 
   const key = await makeKey();
   const encoded = await exportKey(key);
@@ -82,4 +96,22 @@ export async function connectWithToken(token: string): Promise<SyncConfig> {
   );
   const gistId = await createGist(clean, empty);
   return { token: clean, gistId, key: encoded, login };
+}
+
+/** Swap the credential without disturbing the pairing.
+ *
+ *  Tokens expire, get revoked, or get regenerated for another app that
+ *  shares them — and the only way out used to be Disconnect, which throws
+ *  away the gist id and the key along with it. The key is the only thing
+ *  that can read the synced copy, so losing it to fix a password is a bad
+ *  trade. Keep both; replace the token alone. */
+export async function replaceToken(
+  config: SyncConfig,
+  token: string,
+): Promise<SyncConfig> {
+  const clean = token.trim();
+  if (!clean) throw new Error("Paste a GitHub token first.");
+  const login = await whoami(clean);
+  await canUseGists(clean);
+  return { ...config, token: clean, login };
 }
