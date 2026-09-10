@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "@/App";
+import { Boundary } from "@/components/Boundary";
 import { applyTheme, usePrefs } from "@/lib/prefs";
 import { registerSW } from "virtual:pwa-register";
 import "@/styles/fonts.css";
@@ -21,6 +22,8 @@ if (!rootEl) throw new Error("Root element #root not found");
 // WebGL that both tolerate a dev double-mount.
 createRoot(rootEl).render(
   <StrictMode>
-    <App />
+    <Boundary>
+      <App />
+    </Boundary>
   </StrictMode>,
 );

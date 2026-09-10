@@ -316,16 +316,17 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
                 aria-label={`Options for: ${line.text || "empty line"}`}
                 aria-haspopup="menu"
                 aria-expanded={menu?.id === line.id}
-                onClick={(e) =>
+                onClick={(e) => {
+                  // Measure now, not inside the updater. React nulls out
+                  // `currentTarget` once the handler returns, and it only
+                  // runs an updater eagerly while the fiber has no pending
+                  // work — so this read succeeded on the first open and
+                  // threw on every one after it, taking the whole app down.
+                  const anchor = e.currentTarget.getBoundingClientRect();
                   setMenu((m) =>
-                    m?.id === line.id
-                      ? null
-                      : {
-                          id: line.id,
-                          anchor: e.currentTarget.getBoundingClientRect(),
-                        },
-                  )
-                }
+                    m?.id === line.id ? null : { id: line.id, anchor },
+                  );
+                }}
               >
                 ⋯
               </button>
