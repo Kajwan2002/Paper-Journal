@@ -15,12 +15,17 @@ import { isOpenTask, type Line } from "@/lib/rapidlog";
  *  It used to sit where it was written, marked with a chip, and only appear
  *  on its day — so flipping forward to see the week ahead showed empty
  *  pages, which is the opposite of what a planner is for. Now the task goes
- *  onto the day you chose, and the page you wrote it on keeps a `›`
- *  breadcrumb pointing forward. Same shape as rollover, just at the moment
- *  you decide rather than the morning it comes due.
+ *  onto the day you chose and off the day you wrote it: sending something
+ *  forward is a decision not to look at it today, so leaving a breadcrumb
+ *  behind just puts it back in front of you.
  *
- *  Copies share one line id, which is what lets a strike settle the whole
- *  chain later. */
+ *  This is deliberately unlike rollover, which *does* leave a `›` on every
+ *  morning it carries something through — those breadcrumbs are the record
+ *  of work you kept not getting to, and they are what makes leafing back
+ *  over a week readable. A move you chose is not that.
+ *
+ *  Copies still share one line id, which is what lets a strike settle the
+ *  rest of the chain later. */
 export async function moveLineTo(
   notebookId: string,
   from: DayKey,
@@ -63,19 +68,9 @@ export async function moveLineTo(
   adopt(notebookId, to, nextTarget);
   await savePage(notebookId, to, nextTarget);
 
-  // the day you wrote it keeps a breadcrumb saying where it went
+  // and off the day you wrote it — you sent it forward to stop seeing it
   const here = getCached(pageId(notebookId, from)) ?? [];
-  const nextHere = here.map((l) =>
-    l.id === line.id
-      ? {
-          ...l,
-          kind: "migrated" as const,
-          carriedTo: to,
-          due: undefined,
-          someday: undefined,
-        }
-      : l,
-  );
+  const nextHere = here.filter((l) => l.id !== line.id);
   adopt(notebookId, from, nextHere);
   await savePage(notebookId, from, nextHere);
 }

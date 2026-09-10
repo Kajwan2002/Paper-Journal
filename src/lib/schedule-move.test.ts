@@ -31,15 +31,14 @@ describe("filing a task for a later day", () => {
     expect(on(target)[0].origin).toBe(T0);
   });
 
-  it("leaves a breadcrumb pointing forward on the day you wrote it", async () => {
+  it("takes it off the day you wrote it — that is the point of sending it on", async () => {
     const target = addDays(T0, 3);
     const line = newLine("task", "book the ferry");
-    adopt(NB, T0, [line]);
+    adopt(NB, T0, [newLine("note", "keep me"), line]);
 
     await moveLineTo(NB, T0, line, target);
 
-    expect(on(T0)[0].kind).toBe("migrated");
-    expect(on(T0)[0].carriedTo).toBe(target);
+    expect(textsOn(T0)).toEqual(["keep me"]);
   });
 
   it("survives being filed again, without leaving a copy behind", async () => {
@@ -53,15 +52,16 @@ describe("filing a task for a later day", () => {
     await moveLineTo(NB, first, moved, second);
 
     expect(textsOn(second)).toEqual(["book the ferry"]);
-    expect(on(first)[0].carriedTo).toBe(second);
-    // exactly one live copy anywhere in the chain
-    const live = [T0, first, second].flatMap((d) =>
-      on(d).filter((l) => l.id === line.id && !l.carriedTo),
+    expect(textsOn(first)).toEqual([]);
+    expect(textsOn(T0)).toEqual([]);
+    // exactly one copy anywhere in the chain
+    const copies = [T0, first, second].flatMap((d) =>
+      on(d).filter((l) => l.id === line.id),
     );
-    expect(live).toHaveLength(1);
+    expect(copies).toHaveLength(1);
   });
 
-  it("keeps the strike travelling back over the whole chain", async () => {
+  it("has nothing left behind for a later strike to settle", async () => {
     const target = addDays(T0, 5);
     const line = newLine("priority", "book the ferry");
     adopt(NB, T0, [line]);
@@ -69,9 +69,12 @@ describe("filing a task for a later day", () => {
 
     const done = tapSignifier(on(target)[0]);
     adopt(NB, target, [done]);
+    // the rollover breadcrumbs it may pick up later still get settled; the
+    // day it was sent from simply has no copy to settle
     await setStruckAcrossChain(NB, done, true, target);
 
-    expect(isStruck(on(T0)[0])).toBe(true);
+    expect(on(T0)).toEqual([]);
+    expect(isStruck(on(target)[0])).toBe(true);
   });
 
   it("filing for today or the past just makes it open now", async () => {
@@ -114,7 +117,7 @@ describe("repairing journals written before scheduling moved anything", () => {
     await settleLegacySchedules(NB);
 
     expect(textsOn(target)).toEqual(["renew the passport"]);
-    expect(on(T0)[0].carriedTo).toBe(target);
+    expect(textsOn(T0)).toEqual([]);
   });
 
   it("is safe to run twice", async () => {
