@@ -136,20 +136,31 @@
 
 /* the DOM page honours the notebook's paper the same way the turning leaf
    does — before, only the WebGL leaf did, so a dot-grid notebook changed
-   surface mid-turn */
+   surface mid-turn. Same density and weight as render/paintPage.ts draws. */
 .daily--dot-grid .ruled__row,
 .daily--blank .ruled__row {
   border-bottom-color: transparent;
 }
-.daily--dot-grid .ruled__row {
+.daily--dot-grid .ruled__row,
+.daily--blank .ruled__row {
+  background: transparent;
+}
+/* the grid covers the whole page, not just the lines written on so far, and
+   scrolls with the writing the way ink and paper move together */
+.daily--dot-grid .daily__body {
   background-image: radial-gradient(
-    circle at 0.35rem 100%,
-    color-mix(in srgb, var(--ink) 22%, transparent) 0.5px,
-    transparent 0.6px
+    circle,
+    color-mix(in srgb, var(--ink) 22%, transparent) 0.9px,
+    transparent 1.1px
   );
-  background-size: 0.9rem 100%;
-  background-repeat: repeat-x;
-  background-position: 0 100%;
+  background-size: 1.27rem 1.27rem;
+  background-position: 0.3rem 0.7rem;
+  background-attachment: local;
+}
+/* a lifted row still needs something solid under it */
+.daily--dot-grid .ruled__row--drag,
+.daily--blank .ruled__row--drag {
+  background: var(--paper);
 }
 
 /* --- a year ago ------------------------------------------------------- */
