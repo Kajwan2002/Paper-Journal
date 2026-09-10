@@ -3,6 +3,7 @@ import { ensureShelf, type Notebook } from "@/lib/db";
 import { prime, subscribeJournal } from "@/lib/pageStore";
 import { openLoops, rolloverToToday } from "@/lib/rollover";
 import { settleLegacySchedules } from "@/lib/schedule";
+import { comingDue } from "@/lib/deadline";
 import { requestPersistence } from "@/lib/persist";
 import { todayKey } from "@/lib/date";
 import { useSession } from "@/state/session";
@@ -31,9 +32,16 @@ export function App() {
   const overlay = useOverlay((s) => s.open);
   const closeOverlay = useOverlay((s) => s.close);
 
+  const [overdue, setOverdue] = useState(0);
+
   const countLoops = useCallback((id: string) => {
     void openLoops(id).then((all) =>
       setLoops(all.filter((l) => !l.line.someday).length),
+    );
+    void comingDue(id).then((all) =>
+      setOverdue(
+        all.filter((d) => d.urgency === "late" || d.urgency === "today").length,
+      ),
     );
   }, []);
 
@@ -172,7 +180,7 @@ export function App() {
 
   return (
     <>
-      <Desk loops={loops}>
+      <Desk loops={loops} overdue={overdue}>
         {current ? <Book key={current.id} notebook={current} /> : null}
       </Desk>
       {current && overlay === "month" ? (

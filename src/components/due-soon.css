@@ -1,0 +1,82 @@
+.duesoon {
+  margin: 1.3rem 0 0.2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--oxblood) 22%, transparent);
+}
+
+.duesoon__head {
+  margin: 0 0 0.3rem;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+}
+
+.duesoon__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.duesoon__item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.12rem 0;
+  text-align: left;
+  border-radius: 2px;
+  transition: background 0.14s ease;
+}
+.duesoon__item:hover {
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+}
+
+.duesoon__when {
+  flex: none;
+  min-width: 5.6rem;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+.duesoon__item--close .duesoon__when,
+.duesoon__item--today .duesoon__when,
+.duesoon__item--late .duesoon__when {
+  color: var(--oxblood);
+  font-weight: 500;
+}
+
+.duesoon__text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.84rem;
+  line-height: 1.3;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.duesoon__item--late .duesoon__text {
+  color: var(--oxblood);
+}
+
+.duesoon__where {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+}
+
+@media (hover: none) {
+  .duesoon__item {
+    padding: 0.28rem 0;
+  }
+}

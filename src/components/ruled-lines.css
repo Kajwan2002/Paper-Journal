@@ -320,3 +320,45 @@
   color: var(--ink-faint);
   border-color: color-mix(in srgb, var(--ink) 15%, transparent);
 }
+
+/* --- deadlines -------------------------------------------------------- */
+
+/* the mark itself changes shape, so a page shows at a glance which of its
+   tasks are answering to a date */
+.ruled__row:has(.ruled__chip--by) .ruled__glyph {
+  color: var(--brass);
+}
+
+.ruled__chip--by {
+  font-variant-numeric: tabular-nums;
+}
+.ruled__chip--soon {
+  color: var(--brass);
+  border-color: color-mix(in srgb, var(--brass) 45%, transparent);
+}
+.ruled__chip--close {
+  color: var(--oxblood);
+  border-color: color-mix(in srgb, var(--oxblood) 50%, transparent);
+  background: color-mix(in srgb, var(--oxblood) 7%, transparent);
+}
+.ruled__chip--today,
+.ruled__chip--late {
+  color: var(--paper);
+  background: var(--oxblood);
+  border-color: var(--oxblood);
+  font-weight: 500;
+}
+.ruled__row:has(.ruled__chip--today) .ruled__glyph,
+.ruled__row:has(.ruled__chip--late) .ruled__glyph {
+  color: var(--oxblood);
+}
+.ruled__row:has(.ruled__chip--late) .ruled__input,
+.ruled__row:has(.ruled__chip--late) .ruled__static {
+  color: var(--oxblood);
+}
+
+/* a long line should read as cut off rather than simply stopping — the
+   deadline chip beside it takes real width on a phone */
+.ruled__input {
+  text-overflow: ellipsis;
+}

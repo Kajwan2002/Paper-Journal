@@ -35,6 +35,10 @@ export interface Line {
   due?: DayKey;
   /** parked indefinitely. Never carried forward; only Open Loops finds it. */
   someday?: boolean;
+  /** must be done *by* this day. Distinct from where the task sits: `due`
+   *  and a move say "I'll do it then", a deadline says "after this it is
+   *  too late". A task can be filed for one day and answer to another. */
+  deadline?: DayKey;
 }
 
 export function isStruck(line: Pick<Line, "kind" | "struck">): boolean {
@@ -72,8 +76,15 @@ export const GLYPH: Record<LineKind, string> = {
   note: "–",
 };
 
-export function glyphFor(line: Pick<Line, "kind" | "struck">): string {
-  return isStruck(line) ? "×" : GLYPH[line.kind];
+/** A deadline changes the shape of the mark, so a page tells you at a
+ *  glance which of its tasks are answering to a date — without anyone
+ *  having to pick an icon. */
+export function glyphFor(
+  line: Pick<Line, "kind" | "struck" | "deadline">,
+): string {
+  if (isStruck(line)) return "×";
+  if (line.deadline && line.kind !== "event") return "◇";
+  return GLYPH[line.kind];
 }
 
 /** The kinds offered in the quick-add tray, in tray order. */
@@ -119,7 +130,9 @@ export function tapSignifier(line: Line): Line {
     kind: line.kind === "done" ? "task" : line.kind,
     struck,
     // finishing something retires its schedule and its nag count
-    ...(struck ? { due: undefined, someday: undefined, rolls: 0 } : {}),
+    ...(struck
+      ? { due: undefined, someday: undefined, deadline: undefined, rolls: 0 }
+      : {}),
   };
 }
 

@@ -1,6 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { addDays, nextWeekday, relativeDay, type DayKey } from "@/lib/date";
+import {
+  addDays,
+  nextWeekday,
+  relativeDay,
+  todayKey,
+  endOfMonth,
+  type DayKey,
+} from "@/lib/date";
+import { deadlineLabel } from "@/lib/deadline";
 import { isTaskKind, type Line } from "@/lib/rapidlog";
 import { DayPicker } from "@/components/DayPicker";
 import "./line-menu.css";
@@ -38,7 +46,7 @@ export function LineMenu({
   onDelete,
   onClose,
 }: Props) {
-  const [picking, setPicking] = useState(false);
+  const [picking, setPicking] = useState<null | "move" | "deadline">(null);
   const ref = useRef<HTMLDivElement>(null);
   const scheduled = !!line.due || !!line.someday;
   // a breadcrumb is a record of where something went, not a live task —
@@ -98,6 +106,14 @@ export function LineMenu({
   }, [onClose]);
 
   const moveTo = (day: DayKey) => onMove(day);
+  const setDeadline = (day: DayKey | undefined) =>
+    onPatch((l) => ({ ...l, deadline: day }));
+
+  const byWhen: Array<[string, DayKey]> = [
+    ["End of this week", nextWeekday(date, 0)],
+    ["In two weeks", addDays(date, 14)],
+    ["End of the month", endOfMonth(date)],
+  ];
 
   const soon: Array<[string, DayKey]> = [
     ["Tomorrow", addDays(date, 1)],
@@ -114,8 +130,14 @@ export function LineMenu({
         sheet ? undefined : { top: pos?.top ?? -9999, left: pos?.left ?? -9999 }
       }
     >
-      {picking ? (
+      {picking === "move" ? (
         <DayPicker value={line.due ?? date} onPick={moveTo} autoFocus />
+      ) : picking === "deadline" ? (
+        <DayPicker
+          value={line.deadline ?? date}
+          onPick={(d) => setDeadline(d)}
+          autoFocus
+        />
       ) : (
         <>
           {task ? (
@@ -137,7 +159,7 @@ export function LineMenu({
                 type="button"
                 role="menuitem"
                 className="lmenu__item"
-                onClick={() => setPicking(true)}
+                onClick={() => setPicking("move")}
               >
                 <span>Pick a day…</span>
               </button>
@@ -173,6 +195,58 @@ export function LineMenu({
                   <span>Unschedule</span>
                 </button>
               ) : null}
+
+              <hr className="lmenu__rule" />
+              <p className="lmenu__label">Due by</p>
+              {line.deadline ? (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="lmenu__item lmenu__item--on"
+                    onClick={() => setPicking("deadline")}
+                  >
+                    <span>{relativeDay(line.deadline, date)}</span>
+                    <span className="lmenu__hint">
+                      {deadlineLabel(line.deadline, todayKey())}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="lmenu__item"
+                    onClick={() => setDeadline(undefined)}
+                  >
+                    <span>No deadline</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {byWhen.map(([label, day]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      role="menuitem"
+                      className="lmenu__item"
+                      onClick={() => setDeadline(day)}
+                    >
+                      <span>{label}</span>
+                      <span className="lmenu__hint">
+                        {relativeDay(day, date)}
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="lmenu__item"
+                    onClick={() => setPicking("deadline")}
+                  >
+                    <span>Pick a deadline…</span>
+                  </button>
+                </>
+              )}
+
               <hr className="lmenu__rule" />
             </>
           ) : null}

@@ -15,7 +15,13 @@ const GLYPH: Record<ThemeChoice, string> = {
   dark: "☾",
 };
 
-export function DeskControls({ loops }: { loops: number }) {
+export function DeskControls({
+  loops,
+  overdue,
+}: {
+  loops: number;
+  overdue: number;
+}) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
   const open = useSession((s) => s.open);
@@ -29,12 +35,19 @@ export function DeskControls({ loops }: { loops: number }) {
             type="button"
             className="deskctl__btn deskctl__btn--loops"
             title="Open loops"
-            aria-label={`Open loops${loops ? `: ${loops} outstanding` : ""}`}
+            aria-label={`Open loops${loops ? `: ${loops} outstanding` : ""}${
+              overdue ? `, ${overdue} out of time` : ""
+            }`}
             onClick={() => show("loops")}
           >
             ❧
             {loops ? (
-              <span className="deskctl__count" aria-hidden="true">
+              <span
+                className={`deskctl__count ${
+                  overdue ? "deskctl__count--late" : ""
+                }`}
+                aria-hidden="true"
+              >
                 {loops > 99 ? "99+" : loops}
               </span>
             ) : null}

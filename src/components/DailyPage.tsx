@@ -14,9 +14,11 @@ import { getCached, prime, subscribe, writeLines } from "@/lib/pageStore";
 import type { Line } from "@/lib/rapidlog";
 import { glyphFor, isStruck } from "@/lib/rapidlog";
 import { NAG_CAP } from "@/lib/rollover";
+import { deadlineShort, urgencyOf } from "@/lib/deadline";
 import { useSession } from "@/state/session";
 import { useOverlay } from "@/state/overlay";
 import { RuledLines } from "@/components/RuledLines";
+import { DueSoon } from "@/components/DueSoon";
 import "./daily-page.css";
 
 interface Props {
@@ -89,6 +91,7 @@ export function DailyPage({
             <StaticLines lines={lines} />
           )
         ) : null}
+        {interactive && today ? <DueSoon notebookId={notebookId} /> : null}
         {interactive ? (
           <Marginalia key={date} notebookId={notebookId} date={date} />
         ) : null}
@@ -167,7 +170,16 @@ function StaticLines({ lines }: { lines: Line[] }) {
         >
           <span className="ruled__glyph">{glyphFor(l)}</span>
           <span className="ruled__static">{l.text}</span>
-          {l.carriedTo ? (
+          {l.deadline && !isStruck(l) ? (
+            <span
+              className={`ruled__chip ruled__chip--by ruled__chip--${urgencyOf(
+                l.deadline,
+                today,
+              )}`}
+            >
+              {deadlineShort(l.deadline, today)}
+            </span>
+          ) : l.carriedTo ? (
             <span className="ruled__chip ruled__chip--moved">
               → {relativeDay(l.carriedTo, today)}
             </span>

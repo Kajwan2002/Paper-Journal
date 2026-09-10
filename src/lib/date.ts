@@ -154,3 +154,8 @@ export function nextWeekday(from: DayKey, dow: number): DayKey {
   const ahead = (dow - cur + 7) % 7 || 7;
   return addDays(from, ahead);
 }
+
+export function endOfMonth(key: DayKey): DayKey {
+  const d = fromDayKey(key);
+  return toDayKey(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}

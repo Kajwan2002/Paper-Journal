@@ -20,6 +20,7 @@ import { parseDue } from "@/lib/nldate";
 import { setStruckAcrossChain } from "@/lib/chain";
 import { moveLineTo } from "@/lib/schedule";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
+import { deadlineShort, urgencyOf } from "@/lib/deadline";
 import { NAG_CAP } from "@/lib/rollover";
 import { useQuickAdd } from "@/state/quickadd";
 import { LineMenu } from "@/components/LineMenu";
@@ -327,7 +328,16 @@ export function RuledLines({
               onBlur={() => settleLine(line.id)}
             />
 
-            {line.carriedTo ? (
+            {line.deadline && !struck ? (
+              <span
+                className={`ruled__chip ruled__chip--by ruled__chip--${urgencyOf(
+                  line.deadline,
+                  today,
+                )}`}
+              >
+                {deadlineShort(line.deadline, today)}
+              </span>
+            ) : line.carriedTo ? (
               // a breadcrumb: the useful fact is where it went, and its old
               // `due` would read as a date that has long since passed
               <span className="ruled__chip ruled__chip--moved">

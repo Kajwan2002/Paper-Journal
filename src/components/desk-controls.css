@@ -58,3 +58,9 @@
     bottom: calc(max(0.7rem, env(safe-area-inset-bottom)) + 2.75rem);
   }
 }
+
+/* a deadline that has run out is not the same news as a long to-do list */
+.deskctl__count--late {
+  background: var(--oxblood-bright);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--oxblood) 35%, transparent);
+}

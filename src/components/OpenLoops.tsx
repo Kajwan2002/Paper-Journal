@@ -5,6 +5,7 @@ import { openLoops, type Loop } from "@/lib/rollover";
 import { setStruckAcrossChain } from "@/lib/chain";
 import { glyphFor, isStruck, tapSignifier, type Line } from "@/lib/rapidlog";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
+import { deadlineLabel, urgencyOf } from "@/lib/deadline";
 import { useSession } from "@/state/session";
 import { Sheet } from "@/components/Sheet";
 import "./open-loops.css";
@@ -14,10 +15,15 @@ interface Props {
   onClose: () => void;
 }
 
-type Bucket = "due" | "later" | "someday";
+type Bucket = "deadline" | "due" | "later" | "someday";
 
 function bucketOf(line: Line, date: DayKey, today: DayKey): Bucket {
   if (line.someday) return "someday";
+  // a deadline outranks where the task happens to sit — it is the thing
+  // that runs out
+  if (line.deadline && urgencyOf(line.deadline, today) !== "later") {
+    return "deadline";
+  }
   // filed for a later day means it is sitting on that day's page
   if (date > today) return "later";
   if (line.due && line.due > today) return "later";
@@ -25,6 +31,7 @@ function bucketOf(line: Line, date: DayKey, today: DayKey): Bucket {
 }
 
 const HEADINGS: Record<Bucket, string> = {
+  deadline: "Running out of time",
   due: "Asking for you",
   later: "Filed for later",
   someday: "Someday",
@@ -68,7 +75,7 @@ export function OpenLoops({ notebookId, onClose }: Props) {
     onClose();
   };
 
-  const buckets: Bucket[] = ["due", "later", "someday"];
+  const buckets: Bucket[] = ["deadline", "due", "later", "someday"];
   const grouped = new Map<Bucket, Loop[]>(
     buckets.map((b) => [
       b,
@@ -124,8 +131,11 @@ export function OpenLoops({ notebookId, onClose }: Props) {
                           {line.rolls && line.rolls > 1
                             ? ` · carried ${line.rolls}×`
                             : ""}
-                          {line.due
-                            ? ` · for ${relativeDay(line.due, today)}`
+                          {line.deadline
+                            ? ` · ${deadlineLabel(line.deadline, today)}`
+                            : ""}
+                          {date > today
+                            ? ` · for ${relativeDay(date, today)}`
                             : ""}
                         </span>
                       </button>
