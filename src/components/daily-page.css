@@ -103,33 +103,49 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  /* A page with more lines than fit used to just stop, with the scrollbar
-     hidden and no cue. Fade the last few millimetres so there is always a
-     visible "there is more here". */
-  --fade: 1.6rem;
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0,
-    #000 calc(100% - var(--fade)),
-    transparent 100%
-  );
-  animation: daily-scroll-cue linear;
-  animation-timeline: scroll(self block);
 }
 .daily__body::-webkit-scrollbar {
   display: none;
 }
 
-/* at the very bottom there is nothing left to hint at, so lift the fade */
-@keyframes daily-scroll-cue {
-  to {
-    --fade: 0rem;
+/* A page with more lines than fit used to just stop, with the scrollbar
+   hidden and no cue. Fade the last few millimetres so there is always a
+   visible "there is more here", and lift the fade at the bottom of the
+   scroll so the last line is never washed out.
+
+   Scroll-driven animations are Chromium-only today, so this is a straight
+   progressive enhancement: without them the page behaves exactly as it did
+   before, rather than fading a line nobody can scroll past. */
+@supports (animation-timeline: scroll()) {
+  @property --fade {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 1.6rem;
   }
-}
-@property --fade {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 1.6rem;
+
+  .daily__body {
+    --fade: 1.6rem;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - var(--fade)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - var(--fade)),
+      transparent 100%
+    );
+    animation: daily-scroll-cue linear;
+    animation-timeline: scroll(self block);
+  }
+
+  @keyframes daily-scroll-cue {
+    to {
+      --fade: 0rem;
+    }
+  }
 }
 
 /* --- paper styles ----------------------------------------------------- */
