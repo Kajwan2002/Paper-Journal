@@ -13,8 +13,21 @@ const inflight = new Map<string, Promise<void>>();
 const meta = new Map<string, { notebookId: string; date: DayKey }>();
 const revisions = new Map<string, number>();
 
+const journalListeners = new Set<() => void>();
+
 function emit(key: string): void {
   listeners.get(key)?.forEach((fn) => fn());
+  journalListeners.forEach((fn) => fn());
+}
+
+/** Fires on any change to any page. The open-loops ribbon uses it so its
+ *  count stays honest the moment something is ticked off, rather than going
+ *  stale until an overlay happens to close. */
+export function subscribeJournal(fn: () => void): () => void {
+  journalListeners.add(fn);
+  return () => {
+    journalListeners.delete(fn);
+  };
 }
 
 /** Bumped on every local edit. Rollover captures these before its awaits and

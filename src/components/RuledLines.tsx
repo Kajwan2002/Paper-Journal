@@ -17,6 +17,7 @@ import {
   type Line,
 } from "@/lib/rapidlog";
 import { parseDue } from "@/lib/nldate";
+import { setStruckAcrossChain } from "@/lib/chain";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { NAG_CAP } from "@/lib/rollover";
 import { useQuickAdd } from "@/state/quickadd";
@@ -28,10 +29,19 @@ interface Props {
   onChange: (lines: Line[]) => void;
   /** the day these lines are written on — the anchor for "friday" */
   date: DayKey;
+  /** which notebook, so a strike can follow the line back through the days
+   *  it was carried across */
+  notebookId: string;
   placeholder?: string;
 }
 
-export function RuledLines({ lines, onChange, date, placeholder }: Props) {
+export function RuledLines({
+  lines,
+  onChange,
+  date,
+  notebookId,
+  placeholder,
+}: Props) {
   const inputs = useRef<Map<string, HTMLInputElement>>(new Map());
   /** the line to put the caret on after the next render — a ref rather than
    *  state so asking for focus never costs an extra render pass */
@@ -94,6 +104,22 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
     [commit],
   );
 
+  /** Tap the signifier: toggle this copy, and carry the result back through
+   *  every day the task was migrated across, so a week read backwards shows
+   *  what was actually finished. */
+  const strike = useCallback(
+    (id: string) => {
+      const before = rowsRef.current.find((l) => l.id === id);
+      if (!before) return;
+      const after = tapSignifier(before);
+      patch(id, () => after);
+      if (isStruck(after) !== isStruck(before)) {
+        void setStruckAcrossChain(notebookId, after, isStruck(after), date);
+      }
+    },
+    [patch, notebookId, date],
+  );
+
   const editText = (id: string, raw: string) => {
     const idx = rows.findIndex((l) => l.id === id);
     if (idx < 0) return;
@@ -135,7 +161,7 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
     // Enter, which would otherwise swallow the chord and open a new line.
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      patch(id, tapSignifier);
+      strike(id);
       return;
     }
 
@@ -277,7 +303,7 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
                   ? `Not done: ${line.text || "empty line"}`
                   : `Mark done: ${line.text || "empty line"}`
               }
-              onClick={() => patch(line.id, tapSignifier)}
+              onClick={() => strike(line.id)}
             >
               {glyphFor(line)}
             </button>
@@ -297,7 +323,13 @@ export function RuledLines({ lines, onChange, date, placeholder }: Props) {
               onBlur={() => settleLine(line.id)}
             />
 
-            {line.someday ? (
+            {line.carriedTo ? (
+              // a breadcrumb: the useful fact is where it went, and its old
+              // `due` would read as a date that has long since passed
+              <span className="ruled__chip ruled__chip--moved">
+                → {relativeDay(line.carriedTo, today)}
+              </span>
+            ) : line.someday ? (
               <span className="ruled__chip ruled__chip--someday">someday</span>
             ) : line.due ? (
               <span

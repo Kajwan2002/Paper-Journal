@@ -315,3 +315,8 @@
   width: 1px;
   background: color-mix(in srgb, var(--ink) 15%, transparent);
 }
+
+.ruled__chip--moved {
+  color: var(--ink-faint);
+  border-color: color-mix(in srgb, var(--ink) 15%, transparent);
+}

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { getCached, prime, writeLines } from "@/lib/pageStore";
 import { pageId } from "@/lib/db";
 import { openLoops, type Loop } from "@/lib/rollover";
-import { glyphFor, tapSignifier, type Line } from "@/lib/rapidlog";
+import { setStruckAcrossChain } from "@/lib/chain";
+import { glyphFor, isStruck, tapSignifier, type Line } from "@/lib/rapidlog";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { useSession } from "@/state/session";
 import { Sheet } from "@/components/Sheet";
@@ -96,7 +97,17 @@ export function OpenLoops({ notebookId, onClose }: Props) {
                         type="button"
                         className="loops__tick"
                         aria-label={`Mark done: ${line.text}`}
-                        onClick={() => void patch(date, line.id, tapSignifier)}
+                        onClick={() => {
+                          const after = tapSignifier(line);
+                          void patch(date, line.id, () => after).then(() =>
+                            setStruckAcrossChain(
+                              notebookId,
+                              after,
+                              isStruck(after),
+                              date,
+                            ).then(reload),
+                          );
+                        }}
                       >
                         {glyphFor(line)}
                       </button>

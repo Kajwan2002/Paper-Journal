@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ensureShelf, type Notebook } from "@/lib/db";
-import { prime } from "@/lib/pageStore";
+import { prime, subscribeJournal } from "@/lib/pageStore";
 import { openLoops, rolloverToToday } from "@/lib/rollover";
 import { requestPersistence } from "@/lib/persist";
 import { todayKey } from "@/lib/date";
@@ -46,8 +46,16 @@ export function App() {
         const stillValid = notebooks.some((n) => n.id === notebookId);
         const id = stillValid ? notebookId! : notebooks[0].id;
         if (!stillValid) setNotebook(id);
+
+        // A planner opens on today. The session remembers the page you were
+        // last on, which is right within a day — but reopening the app the
+        // next morning used to leave you on yesterday, so a task that had
+        // just been carried forward was on a page you weren't looking at.
+        // A date in the future is a deliberate flip forward; leave it be.
+        const landOn = date < todayKey() ? todayKey() : date;
+        if (landOn !== date) goToday();
         await prime(id, todayKey());
-        void prime(id, date);
+        void prime(id, landOn);
         if (!alive) return;
         await rolloverToToday(id);
         if (!alive) return;
@@ -130,10 +138,20 @@ export function App() {
   const shelf = boot.state === "ready" ? boot.shelf : null;
   const current = shelf?.find((n) => n.id === notebookId) ?? shelf?.[0] ?? null;
 
-  // recount whenever an overlay closes — ticking something off in Open Loops
-  // or on the page should be reflected on the ribbon straight away
+  // keep the ribbon's count honest: on any write to any page, and whenever
+  // an overlay closes. Debounced, since typing writes on every keystroke.
   useEffect(() => {
-    if (overlay === null && current) countLoops(current.id);
+    if (!current) return;
+    countLoops(current.id);
+    let timer: ReturnType<typeof setTimeout>;
+    const stop = subscribeJournal(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => countLoops(current.id), 600);
+    });
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
   }, [overlay, current, countLoops]);
 
   const refreshShelf = useCallback(() => setAttempt((n) => n + 1), []);

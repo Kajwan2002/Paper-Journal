@@ -81,6 +81,7 @@ export function DailyPage({
             <RuledLines
               lines={lines}
               date={date}
+              notebookId={notebookId}
               onChange={(next) => writeLines(notebookId, date, next)}
               placeholder="What matters today?"
             />
@@ -166,7 +167,11 @@ function StaticLines({ lines }: { lines: Line[] }) {
         >
           <span className="ruled__glyph">{glyphFor(l)}</span>
           <span className="ruled__static">{l.text}</span>
-          {l.someday ? (
+          {l.carriedTo ? (
+            <span className="ruled__chip ruled__chip--moved">
+              → {relativeDay(l.carriedTo, today)}
+            </span>
+          ) : l.someday ? (
             <span className="ruled__chip ruled__chip--someday">someday</span>
           ) : l.due ? (
             <span className="ruled__chip">{relativeDay(l.due, today)}</span>
