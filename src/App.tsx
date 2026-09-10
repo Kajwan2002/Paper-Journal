@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { ensureShelf, type Notebook } from "@/lib/db";
-import { prime, subscribeJournal } from "@/lib/pageStore";
+import { prime, reprime, subscribeJournal } from "@/lib/pageStore";
 import { openLoops, rolloverToToday } from "@/lib/rollover";
 import { settleLegacySchedules } from "@/lib/schedule";
 import { comingDue } from "@/lib/deadline";
+import { startSync, stopSync } from "@/lib/sync";
+import { useSync } from "@/state/sync";
 import { requestPersistence } from "@/lib/persist";
 import { todayKey } from "@/lib/date";
 import { useSession } from "@/state/session";
@@ -33,6 +35,16 @@ export function App() {
   const closeOverlay = useOverlay((s) => s.close);
 
   const [overdue, setOverdue] = useState(0);
+
+  useEffect(() => {
+    useSync.getState().setCurrentNotebook(notebookId);
+  }, [notebookId]);
+
+  const refreshShelf = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = useCallback(() => {
+    setBoot({ state: "loading" });
+    setAttempt((n) => n + 1);
+  }, []);
 
   const countLoops = useCallback((id: string) => {
     void openLoops(id).then((all) =>
@@ -130,6 +142,29 @@ export function App() {
     };
   }, [goToday, countLoops]);
 
+  // sync runs itself in the background once a device is paired
+  useEffect(() => {
+    startSync();
+    return stopSync;
+  }, []);
+
+  // a pull that actually brought something new has written straight to
+  // Dexie behind the cache's back — reload the pages on screen
+  useEffect(() => {
+    const onPulled = (e: Event) => {
+      const adopt = (e as CustomEvent<{ adopt: string | null }>).detail?.adopt;
+      if (adopt) setNotebook(adopt);
+      const id = adopt ?? useSession.getState().notebookId;
+      if (!id) return;
+      void reprime().then(() => {
+        countLoops(id);
+        refreshShelf();
+      });
+    };
+    window.addEventListener("marginalia:pulled", onPulled);
+    return () => window.removeEventListener("marginalia:pulled", onPulled);
+  }, [countLoops, refreshShelf, setNotebook]);
+
   // a global shortcut to search — Cmd/Ctrl+F, or a bare "/" when nothing typed
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -167,12 +202,6 @@ export function App() {
       stop();
     };
   }, [overlay, current, countLoops]);
-
-  const refreshShelf = useCallback(() => setAttempt((n) => n + 1), []);
-  const retry = useCallback(() => {
-    setBoot({ state: "loading" });
-    setAttempt((n) => n + 1);
-  }, []);
 
   if (boot.state === "failed") {
     return <Blocked error={boot.error} onRetry={retry} />;

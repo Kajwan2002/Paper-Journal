@@ -72,12 +72,35 @@ npm run fonts        # re-download the self-hosted font subsets
   a debug menu.
 - **Works offline.** A service worker precaches the shell, and the three type
   families are self‑hosted — no request leaves the device to render a page.
+- **Sync between your own devices.** Through a private gist in your own GitHub
+  account: free, no new account, no server to run, no usage tier to outgrow.
+  Set up one device with a GitHub token, then paste the sync code it gives you
+  into the next one. The journal is encrypted on the device with AES‑GCM before
+  it leaves, so GitHub only ever holds ciphertext.
+
+## How sync resolves a clash
+
+Two devices editing at once resolve per line, not per page. Every line carries
+its own id and the time it last changed, so:
+
+- a line only one device has is kept
+- a line both edited resolves to whichever edit was later
+- a deletion is a tombstone with a time, so it competes on equal terms — delete
+  on the phone then edit on the PC and the edit wins
+
+The consequence worth knowing: a merge can never silently drop writing. The
+worst case is a line you deleted coming back because the other device touched
+it more recently. Sync runs on open, a few seconds after you stop typing, when
+you switch away, and on a slow poll — it is a journal, not a chat.
+
+Lose the sync code and the copy on GitHub is unreadable; your local journal is
+untouched. The code carries your GitHub token, so treat it like a password.
 
 ## Not built yet
 
-Sync across devices, the calendar rail, weekly/monthly spreads, collections,
-the margin assistant, handwriting. The storage layer (`src/lib/pageStore.ts`)
-is the seam the CRDT + end‑to‑end‑encryption sync will plug into.
+The calendar rail, weekly/monthly spreads, collections, the margin assistant,
+handwriting, and push notifications (which need a server the static site
+doesn't have).
 
 ## Stack
 
@@ -91,8 +114,9 @@ hand‑built CSS and Canvas.
 ```
 src/
   lib/         date helpers, rapid-log grammar, Dexie schema, page store,
-               rollover, natural-language dates, backup/restore, storage
-               persistence, ids
+               rollover, natural-language dates, deadlines, backup/restore,
+               sync (gist client, encryption, pairing, per-line merge),
+               storage persistence, ids
   state/       zustand stores — session, overlays, quick-add
   components/  Desk · Book (turn logic) · Cover · DailyPage · RuledLines ·
                LineMenu · DayPicker · Sheet (dialog shell) · Search ·

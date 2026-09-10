@@ -1,5 +1,6 @@
 import { getPage, pageId, savePage } from "@/lib/db";
 import type { Line } from "@/lib/rapidlog";
+import { living, stampEdits, withTombstones } from "@/lib/merge";
 import type { DayKey } from "@/lib/date";
 
 /** A tiny in-memory cache over the Dexie page records so that flipping
@@ -12,6 +13,8 @@ const timers = new Map<string, ReturnType<typeof setTimeout>>();
 const inflight = new Map<string, Promise<void>>();
 const meta = new Map<string, { notebookId: string; date: DayKey }>();
 const revisions = new Map<string, number>();
+/** tombstones for each page, held apart from the living lines the UI sees */
+const buried = new Map<string, Line[]>();
 
 const journalListeners = new Set<() => void>();
 
@@ -28,6 +31,31 @@ export function subscribeJournal(fn: () => void): () => void {
   return () => {
     journalListeners.delete(fn);
   };
+}
+
+/** Forget everything cached and re-read from storage.
+ *
+ *  A sync pull writes merged pages straight to Dexie; without this the app
+ *  would keep showing the pre-merge version it already had in memory. Any
+ *  page still holding an unwritten edit is flushed first, so this can never
+ *  be the thing that loses a sentence. */
+export async function reprime(): Promise<void> {
+  await flushAsync();
+  const keys = [...cache.keys()];
+  cache.clear();
+  buried.clear();
+  await Promise.all(
+    keys.map((key) => {
+      const m = meta.get(key);
+      return m ? prime(m.notebookId, m.date) : Promise.resolve();
+    }),
+  );
+  for (const key of keys) emit(key);
+}
+
+/** The tombstones a page is carrying, for the sync layer to ship. */
+export function graveyard(key: string): Line[] {
+  return buried.get(key) ?? [];
 }
 
 /** Bumped on every local edit. Rollover captures these before its awaits and
@@ -62,7 +90,13 @@ export function prime(notebookId: string, date: DayKey): Promise<void> {
 
   const job = getPage(notebookId, date).then((p) => {
     if (!cache.has(key)) {
-      cache.set(key, p?.lines ?? []);
+      // storage keeps tombstones so the other device learns about deletions;
+      // the cache the UI reads holds only living lines
+      cache.set(key, living(p?.lines ?? []));
+      buried.set(
+        key,
+        (p?.lines ?? []).filter((l) => l.deletedAt),
+      );
       emit(key);
     }
     inflight.delete(key);
@@ -78,7 +112,19 @@ export function writeLines(
 ): void {
   const key = pageId(notebookId, date);
   meta.set(key, { notebookId, date });
-  cache.set(key, lines);
+
+  // stamp what actually changed, and record what disappeared, so two
+  // devices can be merged later without guessing which edit came first
+  const previous = cache.get(key) ?? [];
+  const stamped = stampEdits(lines, previous);
+  const withGraves = withTombstones(stamped, previous);
+  const graves = [
+    ...(buried.get(key) ?? []),
+    ...withGraves.filter((l) => l.deletedAt),
+  ];
+
+  cache.set(key, stamped);
+  buried.set(key, graves);
   revisions.set(key, revision(key) + 1);
   emit(key);
 
@@ -88,7 +134,7 @@ export function writeLines(
     key,
     setTimeout(() => {
       timers.delete(key);
-      void savePage(notebookId, date, lines);
+      void savePage(notebookId, date, [...stamped, ...graves]);
     }, 500),
   );
 }
@@ -107,7 +153,11 @@ export function flushAsync(): Promise<void> {
     clearTimeout(t);
     const m = meta.get(key);
     const lines = cache.get(key);
-    if (m && lines) writes.push(savePage(m.notebookId, m.date, lines));
+    if (m && lines) {
+      writes.push(
+        savePage(m.notebookId, m.date, [...lines, ...(buried.get(key) ?? [])]),
+      );
+    }
   }
   timers.clear();
   return Promise.all(writes).then(() => undefined);
@@ -124,6 +174,11 @@ export function hasPendingWrites(): boolean {
 export function adopt(notebookId: string, date: DayKey, lines: Line[]): void {
   const key = pageId(notebookId, date);
   meta.set(key, { notebookId, date });
+  buried.set(key, [
+    ...(buried.get(key) ?? []),
+    ...lines.filter((l) => l.deletedAt),
+  ]);
+  lines = living(lines);
   const t = timers.get(key);
   if (t) {
     clearTimeout(t);

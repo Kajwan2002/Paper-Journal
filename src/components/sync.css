@@ -1,0 +1,76 @@
+.sync__state {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.15rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.sync__dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: var(--ink-faint);
+  flex: none;
+}
+.sync__dot--idle {
+  background: var(--thread);
+}
+.sync__dot--working {
+  background: var(--brass);
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+.sync__dot--error {
+  background: var(--oxblood);
+}
+
+@keyframes sync-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.sync__steps {
+  margin: 0.2rem 0 0.5rem;
+  padding-left: 1.1rem;
+  font-family: var(--serif);
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.sync__steps li + li {
+  margin-top: 0.15rem;
+}
+.sync__steps a {
+  color: var(--oxblood);
+}
+
+.sync__code {
+  width: 100%;
+  margin: 0.35rem 0;
+  padding: 0.4rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  line-height: 1.45;
+  word-break: break-all;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 3px;
+  resize: vertical;
+}
+.sync__code:focus {
+  outline: none;
+  border-color: var(--oxblood);
+}
+
+.sync__warn {
+  margin: 0.2rem 0 0;
+  font-family: var(--serif);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--oxblood);
+}

@@ -149,9 +149,12 @@ export async function savePage(
   lines: Line[],
 ): Promise<void> {
   const id = pageId(notebookId, date);
-  const nonEmpty = lines.filter((l) => l.text.trim().length > 0);
+  // a tombstone has no text by design — it must survive the empty-line sweep
+  // or the other device would never learn about the deletion
+  const keep = lines.filter((l) => l.text.trim().length > 0 || l.deletedAt);
+  const written = keep.some((l) => !l.deletedAt);
 
-  if (nonEmpty.length === 0) {
+  if (!written && keep.length === 0) {
     await db.pages.delete(id);
     return;
   }
@@ -160,7 +163,7 @@ export async function savePage(
     id,
     notebookId,
     date,
-    lines: nonEmpty,
+    lines: keep,
     updatedAt: Date.now(),
   });
 }

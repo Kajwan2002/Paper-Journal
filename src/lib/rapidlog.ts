@@ -39,6 +39,13 @@ export interface Line {
    *  and a move say "I'll do it then", a deadline says "after this it is
    *  too late". A task can be filed for one day and answer to another. */
   deadline?: DayKey;
+  /** when this line last changed, for merging two devices. Stamped by the
+   *  page store on write; absent on lines written before sync existed. */
+  editedAt?: number;
+  /** a tombstone: the line was deleted at this time. Kept in storage so a
+   *  device that still has the line learns it is gone rather than putting
+   *  it back. Never reaches the UI — the page store filters them out. */
+  deletedAt?: number;
 }
 
 export function isStruck(line: Pick<Line, "kind" | "struck">): boolean {
