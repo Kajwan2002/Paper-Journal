@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { comingDue, deadlineLabel, type Due } from "@/lib/deadline";
 import { prime, subscribeJournal } from "@/lib/pageStore";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { useSession } from "@/state/session";
+import { glyphFor } from "@/lib/rapidlog";
+import { toggleStruck } from "@/lib/tick";
 import "./due-soon.css";
 
 /** A standing note in the margin of today's page: everything with a
@@ -15,6 +17,10 @@ import "./due-soon.css";
  *  page still has to look like paper. */
 export function DueSoon({ notebookId }: { notebookId: string }) {
   const [due, setDue] = useState<Due[] | null>(null);
+  // lines crossed off here but not yet swept out of the list — the tick has
+  // to be visible for a moment, or it reads as the item just vanishing
+  const [justDone, setJustDone] = useState<Set<string>>(new Set());
+  const sweep = useRef<ReturnType<typeof setTimeout> | null>(null);
   const goToDate = useSession((s) => s.goToDate);
   const today = todayKey();
 
@@ -27,11 +33,12 @@ export function DueSoon({ notebookId }: { notebookId: string }) {
     let timer: ReturnType<typeof setTimeout>;
     const stop = subscribeJournal(() => {
       clearTimeout(timer);
-      timer = setTimeout(load, 600);
+      timer = setTimeout(load, 700);
     });
     return () => {
       clearTimeout(timer);
       stop();
+      if (sweep.current) clearTimeout(sweep.current);
     };
   }, [load]);
 
@@ -40,6 +47,15 @@ export function DueSoon({ notebookId }: { notebookId: string }) {
   const visit = (date: DayKey) => {
     goToDate(date);
     void prime(notebookId, date);
+  };
+
+  const cross = (d: Due) => {
+    setJustDone((s) => new Set(s).add(d.line.id));
+    void toggleStruck(notebookId, d.date, d.line);
+    // the reload that follows will drop it; clear the local mark after, so
+    // an un-tick elsewhere doesn't leave a phantom strike behind
+    if (sweep.current) clearTimeout(sweep.current);
+    sweep.current = setTimeout(() => setJustDone(new Set()), 1400);
   };
 
   const late = due.filter((d) => d.urgency === "late").length;
@@ -51,10 +67,22 @@ export function DueSoon({ notebookId }: { notebookId: string }) {
       </p>
       <ul className="duesoon__list">
         {due.map((d) => (
-          <li key={`${d.date}-${d.line.id}`}>
+          <li
+            key={`${d.date}-${d.line.id}`}
+            className={`duesoon__row duesoon__row--${d.urgency}`}
+            data-struck={justDone.has(d.line.id) ? "1" : "0"}
+          >
             <button
               type="button"
-              className={`duesoon__item duesoon__item--${d.urgency}`}
+              className="duesoon__tick"
+              aria-label={`Mark done: ${d.line.text}`}
+              onClick={() => cross(d)}
+            >
+              {justDone.has(d.line.id) ? "×" : glyphFor(d.line)}
+            </button>
+            <button
+              type="button"
+              className="duesoon__item"
               onClick={() => visit(d.date)}
             >
               <span className="duesoon__when">

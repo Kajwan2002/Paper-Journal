@@ -21,6 +21,59 @@
   gap: 0.1rem;
 }
 
+.duesoon__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+/* the tick draws its own line across the row, so crossing something off
+   here looks like crossing it off on the page */
+.duesoon__row::after {
+  content: "";
+  position: absolute;
+  left: 1.3rem;
+  right: 0;
+  top: 52%;
+  height: 1.4px;
+  background: color-mix(in srgb, var(--ink-soft) 80%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.3s cubic-bezier(0.5, 0, 0.25, 1);
+  pointer-events: none;
+}
+.duesoon__row[data-struck="1"]::after {
+  transform: scaleX(1);
+}
+.duesoon__row[data-struck="1"] {
+  opacity: 0.55;
+  transition: opacity 0.3s ease 0.2s;
+}
+
+.duesoon__tick {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--ink-faint);
+  border-radius: 3px;
+  transition:
+    color 0.14s ease,
+    transform 0.12s ease;
+}
+.duesoon__tick:hover {
+  color: var(--oxblood);
+}
+.duesoon__tick:active {
+  transform: scale(0.82);
+}
+.duesoon__row--late .duesoon__tick,
+.duesoon__row--today .duesoon__tick {
+  color: var(--oxblood);
+}
+
 .duesoon__item {
   display: flex;
   align-items: baseline;
@@ -44,9 +97,9 @@
   font-variant-numeric: tabular-nums;
   color: var(--ink-faint);
 }
-.duesoon__item--close .duesoon__when,
-.duesoon__item--today .duesoon__when,
-.duesoon__item--late .duesoon__when {
+.duesoon__row--close .duesoon__when,
+.duesoon__row--today .duesoon__when,
+.duesoon__row--late .duesoon__when {
   color: var(--oxblood);
   font-weight: 500;
 }
@@ -63,7 +116,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.duesoon__item--late .duesoon__text {
+.duesoon__row--late .duesoon__text {
   color: var(--oxblood);
 }
 
