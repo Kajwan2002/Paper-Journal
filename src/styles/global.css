@@ -13,9 +13,15 @@ body,
 html {
   /* belt-and-suspenders alongside the viewport meta's user-scalable=no —
      some browsers (and standalone/installed PWA shells) still honour a
-     pinch or double-tap zoom the meta tag alone didn't stop. The book is a
-     fixed desk, not a page; nothing on it is meant to pan or scale. */
-  touch-action: manipulation;
+     pinch, double-tap, or drag the meta tag alone didn't stop. `none`
+     rather than `manipulation`: manipulation still permits panning, which
+     is exactly what let the whole desk be dragged up and down, and on
+     mobile Safari a drag like that is also what makes the address bar
+     collapse and the book jump as the viewport resizes underneath it. The
+     desk is a fixed backdrop, not a page — nothing here is meant to move.
+     `.daily__body` opts itself back into vertical touch-scrolling for a
+     day with more lines than fit on screen; everywhere else stays put. */
+  touch-action: none;
 }
 
 body {
@@ -26,7 +32,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior: none;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 #root {

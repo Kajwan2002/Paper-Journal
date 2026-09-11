@@ -103,6 +103,11 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  /* html/body lock touch-action down to nothing, so the book itself never
+     drags around the desk — this is the one region allowed to override
+     that and take vertical touch scroll, for a page with more lines than
+     fit on screen */
+  touch-action: pan-y;
 }
 .daily__body::-webkit-scrollbar {
   display: none;
