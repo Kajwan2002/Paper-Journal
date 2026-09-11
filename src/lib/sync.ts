@@ -1,4 +1,4 @@
-import { db, type Notebook, type Page } from "@/lib/db";
+import { db, type Notebook, type Page, type WeekNote } from "@/lib/db";
 import { flushAsync, subscribeJournal } from "@/lib/pageStore";
 import { mergeLines } from "@/lib/merge";
 import { decrypt, encrypt, importKey } from "@/lib/crypto";
@@ -45,9 +45,10 @@ function refOf(config: SyncConfig): GistRef {
 
 async function localSnapshot(): Promise<Backup> {
   await flushAsync();
-  const [notebooks, pages] = await Promise.all([
+  const [notebooks, pages, weekNotes] = await Promise.all([
     db.notebooks.orderBy("order").toArray(),
     db.pages.toArray(),
+    db.weekNotes.toArray(),
   ]);
   return {
     format: BACKUP_FORMAT,
@@ -55,6 +56,7 @@ async function localSnapshot(): Promise<Backup> {
     exportedAt: new Date().toISOString(),
     notebooks,
     pages,
+    weekNotes,
   };
 }
 
@@ -69,8 +71,11 @@ async function absorb(remote: Backup): Promise<boolean> {
     ? remote.notebooks
     : [];
   const remotePages: Page[] = Array.isArray(remote.pages) ? remote.pages : [];
+  const remoteWeekNotes: WeekNote[] = Array.isArray(remote.weekNotes)
+    ? remote.weekNotes
+    : [];
 
-  await db.transaction("rw", db.notebooks, db.pages, async () => {
+  await db.transaction("rw", db.notebooks, db.pages, db.weekNotes, async () => {
     for (const notebook of remoteNotebooks) {
       const mine = await db.notebooks.get(notebook.id);
       if (!mine) {
@@ -98,6 +103,17 @@ async function absorb(remote: Backup): Promise<boolean> {
         updatedAt: Math.max(mine.updatedAt, page.updatedAt),
       });
       changed = true;
+    }
+
+    // free text with no per-line ids — newest write for the week wins,
+    // rather than trying to merge sentences word by word
+    for (const note of remoteWeekNotes) {
+      if (!note?.id || !Array.isArray(note.lines)) continue;
+      const mine = await db.weekNotes.get(note.id);
+      if (!mine || note.updatedAt > mine.updatedAt) {
+        await db.weekNotes.put(note);
+        changed = true;
+      }
     }
   });
 
@@ -180,6 +196,7 @@ export function syncNow(): Promise<void> {
       const signature = JSON.stringify({
         notebooks: mine.notebooks,
         pages: mine.pages,
+        weekNotes: mine.weekNotes,
       });
       if (pulledChanged || signature !== lastPushed) {
         await writeGist(ref, await encrypt(key, JSON.stringify(mine)));

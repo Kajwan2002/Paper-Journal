@@ -159,3 +159,25 @@ export function endOfMonth(key: DayKey): DayKey {
   const d = fromDayKey(key);
   return toDayKey(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 }
+
+/** The Monday that starts the week `key` falls in. */
+export function startOfWeek(key: DayKey): DayKey {
+  const dow = fromDayKey(key).getDay(); // 0 Sun .. 6 Sat
+  return addDays(key, dow === 0 ? -6 : 1 - dow);
+}
+
+/** The seven day keys of the week beginning `weekStart` (a Monday). */
+export function weekDays(weekStart: DayKey): DayKey[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+}
+
+/** e.g. "8–14 Sep", or "29 Sep – 5 Oct" across a month boundary. */
+export function weekRangeLabel(weekStart: DayKey): string {
+  const end = addDays(weekStart, 6);
+  const a = fromDayKey(weekStart);
+  const b = fromDayKey(end);
+  if (a.getMonth() === b.getMonth()) {
+    return `${a.getDate()}–${b.getDate()} ${MONTHS[b.getMonth()].slice(0, 3)}`;
+  }
+  return `${shortDate(weekStart)} – ${shortDate(end)}`;
+}

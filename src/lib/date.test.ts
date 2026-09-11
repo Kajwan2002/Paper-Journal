@@ -8,7 +8,10 @@ import {
   nextWeekday,
   ordinalDay,
   relativeDay,
+  startOfWeek,
   toDayKey,
+  weekDays,
+  weekRangeLabel,
 } from "@/lib/date";
 
 describe("ordinalDay", () => {
@@ -101,5 +104,38 @@ describe("toDayKey", () => {
   it("uses local time, not UTC", () => {
     const late = new Date(2026, 8, 10, 23, 30);
     expect(toDayKey(late)).toBe("2026-09-10");
+  });
+});
+
+describe("startOfWeek", () => {
+  it("finds the Monday, whatever day you're on", () => {
+    // 2026-09-10 is a Thursday; that week's Monday is the 7th.
+    expect(startOfWeek("2026-09-10")).toBe("2026-09-07");
+    expect(startOfWeek("2026-09-07")).toBe("2026-09-07");
+    expect(startOfWeek("2026-09-13")).toBe("2026-09-07"); // Sunday
+  });
+});
+
+describe("weekDays", () => {
+  it("lists the seven days from Monday to Sunday", () => {
+    expect(weekDays("2026-09-07")).toEqual([
+      "2026-09-07",
+      "2026-09-08",
+      "2026-09-09",
+      "2026-09-10",
+      "2026-09-11",
+      "2026-09-12",
+      "2026-09-13",
+    ]);
+  });
+});
+
+describe("weekRangeLabel", () => {
+  it("shows one month once", () => {
+    expect(weekRangeLabel("2026-09-07")).toBe("7–13 Sep");
+  });
+
+  it("names both months when a week straddles one", () => {
+    expect(weekRangeLabel("2026-09-28")).toBe("28 Sep – 4 Oct");
   });
 });

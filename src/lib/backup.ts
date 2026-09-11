@@ -1,4 +1,4 @@
-import { db, type Notebook, type Page } from "@/lib/db";
+import { db, type Notebook, type Page, type WeekNote } from "@/lib/db";
 import { flushAsync } from "@/lib/pageStore";
 import { glyphFor, isStruck, type Line } from "@/lib/rapidlog";
 import { longDate, todayKey } from "@/lib/date";
@@ -19,13 +19,16 @@ export interface Backup {
   exportedAt: string;
   notebooks: Notebook[];
   pages: Page[];
+  /** absent in a backup taken before weekly focus notes existed */
+  weekNotes?: WeekNote[];
 }
 
 export async function buildBackup(): Promise<Backup> {
   await flushAsync(); // never export a journal missing the last line typed
-  const [notebooks, pages] = await Promise.all([
+  const [notebooks, pages, weekNotes] = await Promise.all([
     db.notebooks.orderBy("order").toArray(),
     db.pages.toArray(),
+    db.weekNotes.toArray(),
   ]);
   pages.sort((a, b) => (a.date < b.date ? -1 : 1));
   return {
@@ -34,6 +37,7 @@ export async function buildBackup(): Promise<Backup> {
     exportedAt: new Date().toISOString(),
     notebooks,
     pages,
+    weekNotes,
   };
 }
 
@@ -148,7 +152,7 @@ export async function importBackup(text: string): Promise<ImportResult> {
   let skipped = 0;
   const restored = new Set<string>();
 
-  await db.transaction("rw", db.notebooks, db.pages, async () => {
+  await db.transaction("rw", db.notebooks, db.pages, db.weekNotes, async () => {
     for (const notebook of parsed.notebooks) {
       const existing = await db.notebooks.get(notebook.id);
       if (!existing) await db.notebooks.add(notebook);
@@ -175,6 +179,14 @@ export async function importBackup(text: string): Promise<ImportResult> {
         updatedAt: Date.now(),
       });
       pagesTouched++;
+    }
+
+    // a week note has no per-line ids worth reconciling — keep whichever
+    // side has one already rather than trying to merge free text
+    for (const note of parsed.weekNotes ?? []) {
+      if (!note?.id || !Array.isArray(note.lines)) continue;
+      const existing = await db.weekNotes.get(note.id);
+      if (!existing) await db.weekNotes.put(note);
     }
   });
 

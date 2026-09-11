@@ -1,0 +1,83 @@
+.weekfocus {
+  margin: 0 0 1.1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--oxblood) 22%, transparent);
+}
+
+.weekfocus__head {
+  margin: 0 0 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+}
+
+.weekfocus__lines {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.weekfocus__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.weekfocus__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.14rem 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+}
+.weekfocus__input:focus {
+  outline: none;
+  border-bottom-color: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.weekfocus__input::placeholder {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.weekfocus__dots {
+  flex: none;
+  display: flex;
+  gap: 0.22rem;
+}
+
+.weekfocus__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  background: transparent;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+.weekfocus__dot--on {
+  background: var(--ink-soft);
+  border-color: var(--ink-soft);
+}
+
+.weekfocus__count {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+@media (hover: none) {
+  .weekfocus__input {
+    padding: 0.22rem 0;
+  }
+}

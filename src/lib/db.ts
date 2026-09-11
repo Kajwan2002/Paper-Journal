@@ -27,9 +27,27 @@ export interface Page {
   updatedAt: number;
 }
 
+/** One line in a week's focus note — free text, no kind, no schedule. Just
+ *  what you're keeping an eye on while you plan each day that week. */
+export interface FocusLine {
+  id: string;
+  text: string;
+}
+
+export interface WeekNote {
+  /** `${notebookId}__${weekStart}` */
+  id: string;
+  notebookId: string;
+  /** the Monday that starts the week */
+  weekKey: DayKey;
+  lines: FocusLine[];
+  updatedAt: number;
+}
+
 const db = new Dexie("marginalia") as Dexie & {
   notebooks: EntityTable<Notebook, "id">;
   pages: EntityTable<Page, "id">;
+  weekNotes: EntityTable<WeekNote, "id">;
 };
 
 db.version(1).stores({
@@ -37,10 +55,47 @@ db.version(1).stores({
   pages: "id, notebookId, date, [notebookId+date], updatedAt",
 });
 
+db.version(2).stores({
+  notebooks: "id, order, createdAt",
+  pages: "id, notebookId, date, [notebookId+date], updatedAt",
+  weekNotes: "id, notebookId, weekKey, [notebookId+weekKey], updatedAt",
+});
+
 export { db };
 
 export function pageId(notebookId: string, date: DayKey): string {
   return `${notebookId}__${date}`;
+}
+
+export function weekNoteId(notebookId: string, weekKey: DayKey): string {
+  return `${notebookId}__${weekKey}`;
+}
+
+export async function getWeekNote(
+  notebookId: string,
+  weekKey: DayKey,
+): Promise<WeekNote | undefined> {
+  return db.weekNotes.get(weekNoteId(notebookId, weekKey));
+}
+
+export async function saveWeekNote(
+  notebookId: string,
+  weekKey: DayKey,
+  lines: FocusLine[],
+): Promise<void> {
+  const id = weekNoteId(notebookId, weekKey);
+  const keep = lines.filter((l) => l.text.trim().length > 0);
+  if (keep.length === 0) {
+    await db.weekNotes.delete(id);
+    return;
+  }
+  await db.weekNotes.put({
+    id,
+    notebookId,
+    weekKey,
+    lines: keep,
+    updatedAt: Date.now(),
+  });
 }
 
 /** Ensure there is at least one notebook and return the current shelf.
@@ -113,12 +168,19 @@ export function listNotebooks(): Promise<Notebook[]> {
  *  settings sheet offers an export right beside it. Refuses to remove the
  *  last notebook — an empty shelf has nowhere to land. */
 export async function deleteNotebook(id: string): Promise<boolean> {
-  return db.transaction("rw", db.notebooks, db.pages, async () => {
-    if ((await db.notebooks.count()) <= 1) return false;
-    await db.pages.where("notebookId").equals(id).delete();
-    await db.notebooks.delete(id);
-    return true;
-  });
+  return db.transaction(
+    "rw",
+    db.notebooks,
+    db.pages,
+    db.weekNotes,
+    async () => {
+      if ((await db.notebooks.count()) <= 1) return false;
+      await db.pages.where("notebookId").equals(id).delete();
+      await db.weekNotes.where("notebookId").equals(id).delete();
+      await db.notebooks.delete(id);
+      return true;
+    },
+  );
 }
 
 export function pageCount(notebookId: string): Promise<number> {

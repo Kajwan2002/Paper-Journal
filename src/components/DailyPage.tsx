@@ -19,6 +19,7 @@ import { useSession } from "@/state/session";
 import { useOverlay } from "@/state/overlay";
 import { RuledLines } from "@/components/RuledLines";
 import { DueSoon } from "@/components/DueSoon";
+import { WeekFocus } from "@/components/WeekFocus";
 import "./daily-page.css";
 
 interface Props {
@@ -78,6 +79,7 @@ export function DailyPage({
       </header>
 
       <div className="daily__body">
+        {interactive ? <WeekFocus notebookId={notebookId} date={date} /> : null}
         {ready ? (
           interactive ? (
             <RuledLines

@@ -33,6 +33,12 @@ export function subscribeJournal(fn: () => void): () => void {
   };
 }
 
+/** Tell everything watching the journal that something changed, for a write
+ *  that doesn't go through a page's own cache — a week's focus note, say. */
+export function notifyJournal(): void {
+  journalListeners.forEach((fn) => fn());
+}
+
 /** Forget everything cached and re-read from storage.
  *
  *  A sync pull writes merged pages straight to Dexie; without this the app
