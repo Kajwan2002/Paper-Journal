@@ -54,6 +54,25 @@ describe("saveFocusLines / loadFocusLines", () => {
   it("is empty for a week nothing was written in", async () => {
     expect(await loadFocusLines(NB, MON)).toEqual([]);
   });
+
+  it("keeps the week's row when you clear every line, instead of deleting it", async () => {
+    // regression: deleting the row on save meant the next sync pull saw
+    // "nothing here" and put the old text right back from the gist, since a
+    // missing row can't be told apart from one that was never received
+    await saveFocusLines(NB, MON, [newFocusLine("Gym x3")]);
+    const written = await db.weekNotes.get(`${NB}__${MON}`);
+    expect(written?.lines).toHaveLength(1);
+
+    await saveFocusLines(NB, MON, [newFocusLine("")]);
+    const cleared = await db.weekNotes.get(`${NB}__${MON}`);
+
+    expect(cleared).toBeDefined();
+    expect(cleared?.lines).toEqual([]);
+    // stamped no earlier than the version with real text on it — that's
+    // what lets it win a sync merge against the old, still-pending gist copy
+    expect(cleared!.updatedAt).toBeGreaterThanOrEqual(written!.updatedAt);
+    expect(await loadFocusLines(NB, THU)).toEqual([]);
+  });
 });
 
 describe("focusRows", () => {
