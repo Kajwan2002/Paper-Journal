@@ -9,7 +9,13 @@ import {
   type DayKey,
 } from "@/lib/date";
 import { deadlineLabel } from "@/lib/deadline";
-import { isTaskKind, type Line } from "@/lib/rapidlog";
+import {
+  GLYPH,
+  isTaskKind,
+  QUICK_KINDS,
+  type Line,
+  type LineKind,
+} from "@/lib/rapidlog";
 import { DayPicker } from "@/components/DayPicker";
 import "./line-menu.css";
 
@@ -26,6 +32,16 @@ interface Props {
 }
 
 const GUTTER = 8;
+
+const KIND_LABEL: Record<LineKind, string> = {
+  task: "Task",
+  priority: "Priority",
+  event: "Event",
+  idea: "Idea",
+  note: "Note",
+  done: "Task", // legacy — never offered, but keeps the record type total
+  migrated: "Task",
+};
 
 /** What you'd do to a line with a pen: move it to another day, park it,
  *  nudge it in, or strike it out for good. One sheet, no settings.
@@ -50,8 +66,10 @@ export function LineMenu({
   const ref = useRef<HTMLDivElement>(null);
   const scheduled = !!line.due || !!line.someday;
   // a breadcrumb is a record of where something went, not a live task —
-  // there is nothing to reschedule
-  const task = isTaskKind(line) && !line.carriedTo;
+  // there is nothing to reschedule, or to retype: it isn't really any kind
+  // any more, just a note that something moved on
+  const isBreadcrumb = !!line.carriedTo;
+  const task = isTaskKind(line) && !isBreadcrumb;
 
   // phones get a bottom sheet; anything roomier gets a popover by the line
   const [sheet, setSheet] = useState(
@@ -108,6 +126,12 @@ export function LineMenu({
   const moveTo = (day: DayKey) => onMove(day);
   const setDeadline = (day: DayKey | undefined) =>
     onPatch((l) => ({ ...l, deadline: day }));
+  const setKind = (kind: LineKind) => onPatch((l) => ({ ...l, kind }));
+
+  // a carried task and the legacy "done" kind aren't in the picker — treat
+  // them as the closest thing on it, rather than showing nothing selected
+  const currentKind: LineKind =
+    line.kind === "done" || line.kind === "migrated" ? "task" : line.kind;
 
   const byWhen: Array<[string, DayKey]> = [
     ["End of this week", nextWeekday(date, 0)],
@@ -247,6 +271,31 @@ export function LineMenu({
                 </>
               )}
 
+              <hr className="lmenu__rule" />
+            </>
+          ) : null}
+
+          {!isBreadcrumb ? (
+            <>
+              <p className="lmenu__label">Change to</p>
+              <div className="lmenu__kinds" role="group" aria-label="Type">
+                {QUICK_KINDS.map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={kind === currentKind}
+                    className={`lmenu__kind ${
+                      kind === currentKind ? "lmenu__kind--on" : ""
+                    }`}
+                    title={KIND_LABEL[kind]}
+                    aria-label={KIND_LABEL[kind]}
+                    onClick={() => setKind(kind)}
+                  >
+                    {GLYPH[kind]}
+                  </button>
+                ))}
+              </div>
               <hr className="lmenu__rule" />
             </>
           ) : null}

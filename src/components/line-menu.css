@@ -112,3 +112,42 @@
 .lmenu__item--on {
   color: var(--oxblood);
 }
+
+/* --- change the mark without retyping the line ------------------------- */
+
+.lmenu__kinds {
+  display: flex;
+  gap: 0.2rem;
+  margin: 0.1rem 0.4rem 0.15rem;
+}
+
+.lmenu__kind {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  height: 1.9rem;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: 4px;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+.lmenu__kind:hover,
+.lmenu__kind:focus-visible {
+  color: var(--oxblood);
+  border-color: color-mix(in srgb, var(--oxblood) 40%, transparent);
+}
+.lmenu__kind--on {
+  color: var(--oxblood);
+  background: color-mix(in srgb, var(--oxblood) 10%, transparent);
+  border-color: color-mix(in srgb, var(--oxblood) 55%, transparent);
+}
+
+.lmenu--sheet .lmenu__kind {
+  height: 2.3rem;
+  font-size: 1.05rem;
+}
