@@ -142,4 +142,24 @@ describe("openLoops", () => {
     const loops = await openLoops(NB);
     expect(loops[0].line.text).toBe("newer");
   });
+
+  it("gathers an indented list under its parent instead of listing it separately", async () => {
+    await put(today, [
+      { ...newLine("priority", "Rewe Shopping") },
+      newLine("note", "Cola", 1),
+      newLine("note", "Grill Peppers", 1),
+    ]);
+    const loops = await openLoops(NB);
+    expect(loops.map((l) => l.line.text)).toEqual(["Rewe Shopping"]);
+    expect(loops[0].children.map((c) => c.text)).toEqual([
+      "Cola",
+      "Grill Peppers",
+    ]);
+  });
+
+  it("still lists a top-level task with no children under it as having none", async () => {
+    await put(today, [newLine("task", "Breakfast")]);
+    const loops = await openLoops(NB);
+    expect(loops[0].children).toEqual([]);
+  });
 });

@@ -13,11 +13,10 @@ import {
   isTaskKind,
   newLine,
   parseLine,
-  tapSignifier,
   type Line,
 } from "@/lib/rapidlog";
 import { parseDue } from "@/lib/nldate";
-import { setStruckAcrossChain } from "@/lib/chain";
+import { toggleStruck } from "@/lib/tick";
 import { moveLineTo } from "@/lib/schedule";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { deadlineShort, urgencyOf } from "@/lib/deadline";
@@ -106,20 +105,18 @@ export function RuledLines({
     [commit],
   );
 
-  /** Tap the signifier: toggle this copy, and carry the result back through
-   *  every day the task was migrated across, so a week read backwards shows
-   *  what was actually finished. */
+  /** Tap the signifier: toggle this copy — cascading onto any indented
+   *  lines gathered under it — and carry each changed one back through
+   *  every day it was migrated across, so a week read backwards shows what
+   *  was actually finished. Shared with Open Loops and the coming-up note,
+   *  so ticking something off means the same thing everywhere it appears. */
   const strike = useCallback(
     (id: string) => {
       const before = rowsRef.current.find((l) => l.id === id);
       if (!before) return;
-      const after = tapSignifier(before);
-      patch(id, () => after);
-      if (isStruck(after) !== isStruck(before)) {
-        void setStruckAcrossChain(notebookId, after, isStruck(after), date);
-      }
+      void toggleStruck(notebookId, date, before);
     },
-    [patch, notebookId, date],
+    [notebookId, date],
   );
 
   const editText = (id: string, raw: string) => {

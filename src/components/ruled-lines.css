@@ -305,11 +305,16 @@
   outline-offset: -1px;
 }
 
-/* one level of nesting, drawn as a hanging indent rather than a bare offset */
+/* One level of nesting, drawn as a hanging indent rather than a bare
+   offset. The line should hang from the parent's glyph, not cross the
+   child's own — but `left` here is relative to the indented row's *own*
+   (already shifted) box, so a plain 0.62rem landed inside its own glyph
+   column instead. Back out the row's margin-left first, landing where a
+   parent's glyph would sit. */
 .ruled__row[data-indent="1"]::before {
   content: "";
   position: absolute;
-  left: 0.62rem;
+  left: calc(0.62rem - 1.7rem);
   top: 0.35rem;
   bottom: 0.35rem;
   width: 1px;

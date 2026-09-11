@@ -143,6 +143,56 @@ export function tapSignifier(line: Line): Line {
   };
 }
 
+/** An indented line has no id of its own to point at a parent — the array
+ *  order already says who it belongs to, the same way a hanging indent does
+ *  on paper: it belongs to the nearest unindented line above it, until the
+ *  next one. `[start, end)` — empty when `parentIndex` doesn't point at an
+ *  unindented line, since a child (one level is all there is) has none. */
+export function childRangeOf(
+  lines: Line[],
+  parentIndex: number,
+): [number, number] {
+  if ((lines[parentIndex]?.indent ?? 0) !== 0) {
+    return [parentIndex, parentIndex];
+  }
+  let end = parentIndex + 1;
+  while (end < lines.length && (lines[end].indent ?? 0) === 1) end++;
+  return [parentIndex + 1, end];
+}
+
+/** Retire a line the way `tapSignifier` retires the one you actually
+ *  tapped, but forced to a given struck state rather than toggled — for
+ *  cascading onto children, which didn't ask to be struck themselves. */
+function forceStruck(line: Line, struck: boolean): Line {
+  return {
+    ...line,
+    kind: line.kind === "done" ? "task" : line.kind,
+    struck,
+    ...(struck
+      ? { due: undefined, someday: undefined, deadline: undefined, rolls: 0 }
+      : {}),
+  };
+}
+
+/** Tap a signifier, and — if it belongs to an unindented line with a group
+ *  of indented lines under it — carry the same struck state onto every one
+ *  of them. Ticking off "Rewe Shopping" crosses off Cola, Grill Peppers and
+ *  the rest with it, because on paper they were never separate items, just
+ *  one item with a list under it. Tapping a child, or a line with no
+ *  children, changes only that one line — same as `tapSignifier` alone. */
+export function toggleWithChildren(lines: Line[], id: string): Line[] {
+  const idx = lines.findIndex((l) => l.id === id);
+  if (idx < 0) return lines;
+  const after = tapSignifier(lines[idx]);
+  const nextStruck = isStruck(after);
+  const [start, end] = childRangeOf(lines, idx);
+  return lines.map((line, i) => {
+    if (i === idx) return after;
+    if (i >= start && i < end) return forceStruck(line, nextStruck);
+    return line;
+  });
+}
+
 export function newLine(
   kind: LineKind = "note",
   text = "",

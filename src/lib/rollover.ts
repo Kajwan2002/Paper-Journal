@@ -7,7 +7,7 @@ import {
   revision,
 } from "@/lib/pageStore";
 import { todayKey, type DayKey } from "@/lib/date";
-import { isDue, isOpenTask, type Line } from "@/lib/rapidlog";
+import { childRangeOf, isDue, isOpenTask, type Line } from "@/lib/rapidlog";
 
 /** Task rollover / migration.
  *
@@ -148,6 +148,9 @@ export interface Loop {
   line: Line;
   /** false once a later copy exists — the breadcrumb, not the live task */
   live: boolean;
+  /** the indented lines gathered under this one, if any — "Rewe Shopping"
+   *  brings its list with it rather than each item getting its own row */
+  children: Line[];
 }
 
 export async function openLoops(notebookId: string): Promise<Loop[]> {
@@ -156,10 +159,16 @@ export async function openLoops(notebookId: string): Promise<Loop[]> {
   const out: Loop[] = [];
   for (const page of pages) {
     const lines = getCached(pageId(notebookId, page.date)) ?? page.lines;
-    for (const line of lines) {
-      if (!isOpenTask(line) || line.carriedTo) continue;
-      out.push({ date: page.date, line, live: true });
-    }
+    lines.forEach((line, i) => {
+      if (!isOpenTask(line) || line.carriedTo) return;
+      // an indented line surfaces nested under its parent, not on its own
+      if ((line.indent ?? 0) === 1) return;
+      const [start, end] = childRangeOf(lines, i);
+      const children = lines
+        .slice(start, end)
+        .filter((l) => l.text.trim().length > 0);
+      out.push({ date: page.date, line, live: true, children });
+    });
   }
   out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   return out;

@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  childRangeOf,
   isDue,
   isOpenTask,
   isStruck,
   newLine,
   parseLine,
   tapSignifier,
+  toggleWithChildren,
   type Line,
 } from "@/lib/rapidlog";
 
 const task = (over: Partial<Line> = {}): Line => ({
   ...newLine("task", "post the form"),
+  ...over,
+});
+
+const child = (text: string, over: Partial<Line> = {}): Line => ({
+  ...newLine("note", text, 1),
   ...over,
 });
 
@@ -73,6 +80,103 @@ describe("isOpenTask", () => {
     expect(isOpenTask(task({ text: "   " }))).toBe(false);
     expect(isOpenTask(newLine("note", "a note"))).toBe(false);
     expect(isOpenTask(newLine("event", "dentist"))).toBe(false);
+  });
+});
+
+describe("childRangeOf", () => {
+  it("gathers the indented lines directly beneath an unindented one", () => {
+    const lines = [
+      task({ text: "Rewe Shopping" }),
+      child("Cola"),
+      child("Grill Peppers"),
+      task({ text: "Ausländer Email" }),
+    ];
+    expect(childRangeOf(lines, 0)).toEqual([1, 3]);
+    expect(lines.slice(...childRangeOf(lines, 0)).map((l) => l.text)).toEqual([
+      "Cola",
+      "Grill Peppers",
+    ]);
+  });
+
+  it("is empty for a line with nothing indented under it", () => {
+    const lines = [task({ text: "Breakfast" }), task({ text: "Work" })];
+    expect(childRangeOf(lines, 0)).toEqual([1, 1]);
+  });
+
+  it("is empty when the line itself is a child — one level is all there is", () => {
+    const lines = [task({ text: "Rewe Shopping" }), child("Cola")];
+    expect(childRangeOf(lines, 1)).toEqual([1, 1]);
+  });
+
+  it("stops at the end of the list", () => {
+    const lines = [task({ text: "Rewe Shopping" }), child("Cola")];
+    expect(childRangeOf(lines, 0)).toEqual([1, 2]);
+  });
+});
+
+describe("toggleWithChildren", () => {
+  it("crosses off every indented line beneath the one tapped", () => {
+    const lines = [
+      task({ text: "Rewe Shopping", kind: "priority" }),
+      child("Cola"),
+      child("Grill Peppers"),
+    ];
+    const after = toggleWithChildren(lines, lines[0].id);
+    expect(after.every(isStruck)).toBe(true);
+  });
+
+  it("un-strikes the group the same way", () => {
+    const struck = [
+      { ...task({ text: "Rewe Shopping" }), struck: true },
+      child("Cola", { struck: true }),
+    ];
+    const after = toggleWithChildren(struck, struck[0].id);
+    expect(after.every((l) => !isStruck(l))).toBe(true);
+  });
+
+  it("leaves a line's own kind, id and text alone — only struck moves", () => {
+    const lines = [task({ text: "Rewe Shopping" }), child("Cola")];
+    const after = toggleWithChildren(lines, lines[0].id);
+    expect(after[1].id).toBe(lines[1].id);
+    expect(after[1].text).toBe("Cola");
+    expect(after[1].kind).toBe("note");
+  });
+
+  it("retires a child's own schedule when the group finishes", () => {
+    const lines = [
+      task({ text: "Rewe Shopping" }),
+      child("Cola", { due: "2026-09-20", rolls: 3 }),
+    ];
+    const after = toggleWithChildren(lines, lines[0].id);
+    expect(after[1].due).toBeUndefined();
+    expect(after[1].rolls).toBe(0);
+  });
+
+  it("tapping a child only changes that child", () => {
+    const lines = [
+      task({ text: "Rewe Shopping" }),
+      child("Cola"),
+      child("Grill Peppers"),
+    ];
+    const after = toggleWithChildren(lines, lines[1].id);
+    expect(isStruck(after[0])).toBe(false);
+    expect(isStruck(after[1])).toBe(true);
+    expect(isStruck(after[2])).toBe(false);
+  });
+
+  it("leaves an unrelated line alone", () => {
+    const lines = [
+      task({ text: "Rewe Shopping" }),
+      child("Cola"),
+      task({ text: "Ausländer Email" }),
+    ];
+    const after = toggleWithChildren(lines, lines[0].id);
+    expect(isStruck(after[2])).toBe(false);
+  });
+
+  it("does nothing for an id that isn't there", () => {
+    const lines = [task({ text: "Rewe Shopping" })];
+    expect(toggleWithChildren(lines, "missing")).toBe(lines);
   });
 });
 

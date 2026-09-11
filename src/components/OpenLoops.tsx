@@ -3,7 +3,7 @@ import { getCached, prime, writeLines } from "@/lib/pageStore";
 import { pageId } from "@/lib/db";
 import { openLoops, type Loop } from "@/lib/rollover";
 import { toggleStruck } from "@/lib/tick";
-import { glyphFor, type Line } from "@/lib/rapidlog";
+import { glyphFor, isStruck, type Line } from "@/lib/rapidlog";
 import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { deadlineLabel, urgencyOf } from "@/lib/deadline";
 import { useSession } from "@/state/session";
@@ -45,6 +45,7 @@ const HEADINGS: Record<Bucket, string> = {
  *  behind a search query. */
 export function OpenLoops({ notebookId, onClose }: Props) {
   const [loops, setLoops] = useState<Loop[] | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const goToDate = useSession((s) => s.goToDate);
   const today = todayKey();
 
@@ -53,7 +54,9 @@ export function OpenLoops({ notebookId, onClose }: Props) {
   };
   useEffect(reload, [notebookId]);
 
-  /** Edit a line in place, on whatever page it actually lives on. */
+  /** Edit a line in place, on whatever page it actually lives on. Used only
+   *  for the someday / pick-up toggle — striking a line goes through the
+   *  shared `toggleStruck`, which also cascades onto its children. */
   const patch = async (
     date: DayKey,
     id: string,
@@ -73,6 +76,15 @@ export function OpenLoops({ notebookId, onClose }: Props) {
     goToDate(date);
     void prime(notebookId, date);
     onClose();
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const buckets: Bucket[] = ["deadline", "due", "later", "someday"];
@@ -100,69 +112,132 @@ export function OpenLoops({ notebookId, onClose }: Props) {
                   <span className="loops__n">{items.length}</span>
                 </h3>
                 <ul className="loops__list">
-                  {items.map(({ date, line }) => (
-                    <li key={`${date}-${line.id}`} className="loops__item">
-                      <button
-                        type="button"
-                        className="loops__tick"
-                        aria-label={`Mark done: ${line.text}`}
-                        onClick={() =>
-                          void toggleStruck(notebookId, date, line).then(reload)
-                        }
+                  {items.map(({ date, line, children }) => {
+                    const hasChildren = children.length > 0;
+                    const isOpen = expanded.has(line.id);
+                    return (
+                      <li
+                        key={`${date}-${line.id}`}
+                        className="loops__group-item"
                       >
-                        {glyphFor(line)}
-                      </button>
-                      <button
-                        type="button"
-                        className="loops__text"
-                        onClick={() => visit(date)}
-                      >
-                        <span className="loops__body">{line.text}</span>
-                        <span className="loops__meta">
-                          {relativeDay(line.origin ?? date, today)}
-                          {line.rolls && line.rolls > 1
-                            ? ` · carried ${line.rolls}×`
-                            : ""}
-                          {line.deadline
-                            ? ` · ${deadlineLabel(line.deadline, today)}`
-                            : ""}
-                          {date > today
-                            ? ` · for ${relativeDay(date, today)}`
-                            : ""}
-                        </span>
-                      </button>
-                      {bucket === "someday" ? (
-                        <button
-                          type="button"
-                          className="loops__act"
-                          onClick={() =>
-                            void patch(date, line.id, (l) => ({
-                              ...l,
-                              someday: undefined,
-                              due: undefined,
-                            }))
-                          }
-                        >
-                          pick up
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="loops__act"
-                          onClick={() =>
-                            void patch(date, line.id, (l) => ({
-                              ...l,
-                              someday: true,
-                              due: undefined,
-                              rolls: 0,
-                            }))
-                          }
-                        >
-                          someday
-                        </button>
-                      )}
-                    </li>
-                  ))}
+                        <div className="loops__item">
+                          <button
+                            type="button"
+                            className="loops__tick"
+                            aria-label={`Mark done: ${line.text}`}
+                            onClick={() =>
+                              void toggleStruck(notebookId, date, line).then(
+                                reload,
+                              )
+                            }
+                          >
+                            {glyphFor(line)}
+                          </button>
+                          <button
+                            type="button"
+                            className="loops__text"
+                            onClick={() => visit(date)}
+                          >
+                            <span className="loops__body">{line.text}</span>
+                            <span className="loops__meta">
+                              {relativeDay(line.origin ?? date, today)}
+                              {line.rolls && line.rolls > 1
+                                ? ` · carried ${line.rolls}×`
+                                : ""}
+                              {line.deadline
+                                ? ` · ${deadlineLabel(line.deadline, today)}`
+                                : ""}
+                              {date > today
+                                ? ` · for ${relativeDay(date, today)}`
+                                : ""}
+                            </span>
+                          </button>
+                          {hasChildren ? (
+                            <button
+                              type="button"
+                              className="loops__disclose"
+                              aria-expanded={isOpen}
+                              aria-label={
+                                isOpen
+                                  ? "Hide the list"
+                                  : `Show ${children.length} items`
+                              }
+                              onClick={() => toggleExpanded(line.id)}
+                            >
+                              {isOpen ? "▾" : "▸"}
+                              <span className="loops__disclose-n">
+                                {children.length}
+                              </span>
+                            </button>
+                          ) : null}
+                          {bucket === "someday" ? (
+                            <button
+                              type="button"
+                              className="loops__act"
+                              onClick={() =>
+                                void patch(date, line.id, (l) => ({
+                                  ...l,
+                                  someday: undefined,
+                                  due: undefined,
+                                }))
+                              }
+                            >
+                              pick up
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="loops__act"
+                              onClick={() =>
+                                void patch(date, line.id, (l) => ({
+                                  ...l,
+                                  someday: true,
+                                  due: undefined,
+                                  rolls: 0,
+                                }))
+                              }
+                            >
+                              someday
+                            </button>
+                          )}
+                        </div>
+
+                        {hasChildren && isOpen ? (
+                          <ul className="loops__children">
+                            {children.map((child) => (
+                              <li
+                                key={child.id}
+                                className="loops__child"
+                                data-struck={isStruck(child) ? "1" : "0"}
+                              >
+                                <button
+                                  type="button"
+                                  className="loops__tick loops__tick--child"
+                                  aria-label={`Mark done: ${child.text}`}
+                                  onClick={() =>
+                                    void toggleStruck(
+                                      notebookId,
+                                      date,
+                                      child,
+                                    ).then(reload)
+                                  }
+                                >
+                                  {glyphFor(child)}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="loops__child-text"
+                                  onClick={() => visit(date)}
+                                >
+                                  {child.text}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             );
