@@ -10,6 +10,14 @@ body,
   height: 100%;
 }
 
+html {
+  /* belt-and-suspenders alongside the viewport meta's user-scalable=no —
+     some browsers (and standalone/installed PWA shells) still honour a
+     pinch or double-tap zoom the meta tag alone didn't stop. The book is a
+     fixed desk, not a page; nothing on it is meant to pan or scale. */
+  touch-action: manipulation;
+}
+
 body {
   margin: 0;
   font-family: var(--serif);
@@ -18,6 +26,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 #root {
