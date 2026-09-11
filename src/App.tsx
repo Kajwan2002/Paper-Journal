@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ensureShelf, type Notebook } from "@/lib/db";
 import { prime, reprime, subscribeJournal } from "@/lib/pageStore";
 import { openLoops, rolloverToToday } from "@/lib/rollover";
@@ -35,6 +35,10 @@ export function App() {
   const closeOverlay = useOverlay((s) => s.close);
 
   const [overdue, setOverdue] = useState(0);
+  // the effect below doubles as "reload the shelf" (a sync pull adding a
+  // notebook, a notebook switch) and "the app just started" — only the
+  // latter should ever snap the reader back to today or re-run rollover
+  const bootedRef = useRef(false);
 
   useEffect(() => {
     useSync.getState().setCurrentNotebook(notebookId);
@@ -68,23 +72,31 @@ export function App() {
         const id = stillValid ? notebookId! : notebooks[0].id;
         if (!stillValid) setNotebook(id);
 
-        // A planner opens on today. The session remembers the page you were
-        // last on, which is right within a day — but reopening the app the
-        // next morning used to leave you on yesterday, so a task that had
-        // just been carried forward was on a page you weren't looking at.
-        // A date in the future is a deliberate flip forward; leave it be.
-        const landOn = date < todayKey() ? todayKey() : date;
-        if (landOn !== date) goToday();
-        await prime(id, todayKey());
-        void prime(id, landOn);
-        if (!alive) return;
-        await rolloverToToday(id);
-        if (!alive) return;
-        // journals written before scheduling moved anything still have
-        // tasks stamped with a date but sitting on the day they were
-        // written — walk them onto their day so the week ahead reads right
-        await settleLegacySchedules(id);
-        if (!alive) return;
+        if (!bootedRef.current) {
+          bootedRef.current = true;
+          // A planner opens on today. The session remembers the page you
+          // were last on, which is right within a day — but reopening the
+          // app the next morning used to leave you on yesterday, so a task
+          // that had just been carried forward was on a page you weren't
+          // looking at. A date in the future is a deliberate flip forward;
+          // leave it be. This only belongs on the app's actual first load —
+          // this same effect also re-runs later to pick up a notebook a
+          // sync pull just brought in, and re-snapping to today *then*
+          // meant a page you deliberately flipped back to look at kept
+          // jumping back to today a few seconds after you turned to it.
+          const landOn = date < todayKey() ? todayKey() : date;
+          if (landOn !== date) goToday();
+          await prime(id, todayKey());
+          void prime(id, landOn);
+          if (!alive) return;
+          await rolloverToToday(id);
+          if (!alive) return;
+          // journals written before scheduling moved anything still have
+          // tasks stamped with a date but sitting on the day they were
+          // written — walk them onto their day so the week ahead reads right
+          await settleLegacySchedules(id);
+          if (!alive) return;
+        }
         countLoops(id);
         void requestPersistence();
       } catch (err) {
