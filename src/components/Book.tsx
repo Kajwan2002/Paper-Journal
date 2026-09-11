@@ -420,7 +420,10 @@ export function Book({ notebook }: { notebook: Notebook }) {
 
       if (tap) {
         const el = event.target as HTMLElement | null;
-        if (el?.closest(".ruled__input, button, a")) return;
+        // any real input handles its own tap/focus — naming just the ruled
+        // line's is what let a tap into the weekly focus box above it get
+        // redirected into the nearest task line instead
+        if (el?.closest("input, textarea, button, a")) return;
         // Tapping never turns a page. On paper you turn a page by moving it,
         // and a stray tap that jumps you to tomorrow mid-sentence is the
         // single most annoying thing a notebook can do. Turns are swipe,
