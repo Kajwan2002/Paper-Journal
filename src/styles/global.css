@@ -22,6 +22,12 @@ html {
      `.daily__body` opts itself back into vertical touch-scrolling for a
      day with more lines than fit on screen; everywhere else stays put. */
   touch-action: none;
+  /* installed as a home-screen app, iOS sometimes paints the strip behind
+     the home indicator (and any sliver the desk's own fixed layer hasn't
+     caught up to yet) straight from this element rather than from body —
+     match it to the desk instead of leaving it at the browser default
+     white/black, or that strip reads as a seam at the bottom of the app. */
+  background-color: var(--desk);
 }
 
 body {
