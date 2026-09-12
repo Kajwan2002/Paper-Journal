@@ -66,10 +66,19 @@ export function isOpenTask(line: Line): boolean {
 }
 
 /** An open task that is actually asking for attention today: not parked in
- *  someday, and either unscheduled or scheduled for today or earlier. */
+ *  someday, and either unscheduled or scheduled for today or earlier.
+ *
+ *  A task that only carries a deadline (no `due`) sits quietly the same way
+ *  a `due` task does, until the deadline itself arrives — the deadline chip
+ *  and the "Coming up" note already answer for it every day before then, so
+ *  it does not also need to occupy the daily list and get carried forward
+ *  morning after morning. Once the deadline is today or has passed, it is
+ *  simply an open task like any other. */
 export function isDue(line: Line, on: DayKey): boolean {
   if (!isOpenTask(line) || line.someday) return false;
-  return !line.due || line.due <= on;
+  if (line.due) return line.due <= on;
+  if (line.deadline) return line.deadline <= on;
+  return true;
 }
 
 /** Glyph shown in the margin for each kind. */

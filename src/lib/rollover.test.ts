@@ -98,6 +98,26 @@ describe("rolloverToToday", () => {
     expect(texts(today)).toEqual([]);
   });
 
+  it("does not carry a task with only a future deadline — Coming Up already tracks it", async () => {
+    await put(addDays(today, -1), [
+      {
+        ...newLine("task", "Auslander Email"),
+        deadline: addDays(today, 2),
+      },
+    ]);
+    await rolloverToToday(NB);
+    expect(texts(today)).toEqual([]);
+    expect(texts(addDays(today, -1))).toEqual(["Auslander Email"]);
+  });
+
+  it("carries a deadlined task once the deadline itself arrives", async () => {
+    await put(addDays(today, -5), [
+      { ...newLine("task", "Auslander Email"), deadline: today },
+    ]);
+    await rolloverToToday(NB);
+    expect(texts(today)).toEqual(["Auslander Email"]);
+  });
+
   it("keeps what is already written on today and appends after it", async () => {
     await put(today, [newLine("note", "woke up early")]);
     await put(addDays(today, -1), [newLine("task", "post the form")]);

@@ -203,4 +203,16 @@ describe("isDue", () => {
   it("is never due once struck", () => {
     expect(isDue(task({ struck: true }), today)).toBe(false);
   });
+
+  it("sits quietly on a deadline alone, until the deadline itself arrives", () => {
+    expect(isDue(task({ deadline: "2026-09-12" }), today)).toBe(false);
+    expect(isDue(task({ deadline: today }), today)).toBe(true);
+    expect(isDue(task({ deadline: "2026-09-01" }), today)).toBe(true);
+  });
+
+  it("a due date still wins over a deadline that hasn't arrived", () => {
+    expect(
+      isDue(task({ due: "2026-09-11", deadline: "2026-09-20" }), today),
+    ).toBe(false);
+  });
 });
