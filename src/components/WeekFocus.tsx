@@ -47,6 +47,11 @@ export function WeekFocus({ notebookId, date }: Props) {
   const weekStart = startOfWeek(date);
   const [lines, setLines] = useState<FocusLine[] | null>(null);
   const [tally, setTally] = useState<Map<string, Tally>>(new Map());
+  // the trailing blank line only needs to exist while you might type into
+  // it. Showing it the rest of the time read as a gap left for no reason —
+  // an empty row inside a card with real edges, unlike a plain list, has
+  // nothing else nearby to explain why it's there.
+  const [focused, setFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,12 +147,26 @@ export function WeekFocus({ notebookId, date }: Props) {
 
   if (!lines) return null;
   const hasAny = lines.some((l) => l.text.trim().length > 0);
+  // hide the invite row once there's real content and nothing here is
+  // focused — clicking the last real line (or Enter from it) brings it
+  // straight back, so nothing about adding another line actually changes
+  const visible = !focused && hasAny ? lines.filter((l) => l.text.trim()) : lines;
 
   return (
-    <div className="weekfocus" ref={containerRef}>
+    <div
+      className="weekfocus"
+      ref={containerRef}
+      onFocus={() => setFocused(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setFocused(false);
+        }
+      }}
+    >
       <p className="weekfocus__head">This week · {weekRangeLabel(weekStart)}</p>
       <div className="weekfocus__lines">
-        {lines.map((line, i) => {
+        {visible.map((line) => {
+          const i = lines.indexOf(line);
           const t = tally.get(line.id);
           return (
             <div className="weekfocus__row" key={line.id}>
