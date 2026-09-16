@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -90,6 +91,10 @@ export function WeekFocus({ notebookId, date }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // a row split by Enter doesn't exist in the DOM yet when the keydown
+  // handler runs — this hands the focus off to the layout effect below,
+  // which fires once that row has actually been rendered
+  const pendingFocus = useRef<{ id: string; pos: number } | null>(null);
 
   const reloadTally = useCallback(() => {
     void focusRows(notebookId, date).then((rows) => {
@@ -143,8 +148,8 @@ export function WeekFocus({ notebookId, date }: Props) {
     [notebookId, date],
   );
 
-  // the target row already exists in the DOM by the time this runs — both
-  // callers only ever point at a row rendered on the *previous* keystroke —
+  // the target row already exists in the DOM by the time this runs — this
+  // caller only ever points at a row rendered on the *previous* keystroke —
   // so focusing synchronously (rather than via requestAnimationFrame) is
   // what stops a fast typist's next character landing in the old input
   // before focus has actually moved.
@@ -152,6 +157,20 @@ export function WeekFocus({ notebookId, date }: Props) {
     if (!id) return;
     inputRefs.current.get(id)?.focus();
   };
+
+  // a row inserted by Enter (see onKeyDown) doesn't exist yet when it's
+  // asked for — this runs after the render that creates it, before the
+  // browser paints, so the caret lands there with nothing visible in between
+  useLayoutEffect(() => {
+    if (!pendingFocus.current) return;
+    const { id, pos } = pendingFocus.current;
+    pendingFocus.current = null;
+    const el = inputRefs.current.get(id);
+    if (el) {
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    }
+  });
 
   const setLineText = (id: string, text: string) => {
     setLines((prev) => {
@@ -168,7 +187,30 @@ export function WeekFocus({ notebookId, date }: Props) {
     if (!lines) return;
     if (e.key === "Enter") {
       e.preventDefault();
-      focusInput(lines[i + 1]?.id);
+      const current = lines[i];
+      // pressing Enter on the standing invite row without having typed
+      // anything into it isn't "add a line" — there's nothing to file
+      // in front of, and it already sits at the end with nowhere to go
+      if (current.text === "" && i === lines.length - 1) return;
+
+      // a row right after that's already blank — the standing invite
+      // line, ordinarily — is somewhere to type already; step into it
+      // rather than leaving two empty rows side by side
+      const nextLine = lines[i + 1];
+      if (nextLine && nextLine.text === "") {
+        focusInput(nextLine.id);
+        return;
+      }
+
+      const inserted = newFocusLine();
+      const next = withTrailingBlank([
+        ...lines.slice(0, i + 1),
+        inserted,
+        ...lines.slice(i + 1),
+      ]);
+      pendingFocus.current = { id: inserted.id, pos: 0 };
+      setLines(next);
+      commit(next);
       return;
     }
     if (e.key === "Backspace" && lines[i].text === "" && i > 0) {
