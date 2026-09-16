@@ -185,7 +185,8 @@ export function WeekFocus({ notebookId, date }: Props) {
   // hide the invite row once there's real content and nothing here is
   // focused — clicking the last real line (or Enter from it) brings it
   // straight back, so nothing about adding another line actually changes
-  const visible = !focused && hasAny ? lines.filter((l) => l.text.trim()) : lines;
+  const visible =
+    !focused && hasAny ? lines.filter((l) => l.text.trim()) : lines;
 
   return (
     <div
