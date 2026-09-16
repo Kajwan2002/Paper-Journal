@@ -89,6 +89,22 @@ describe("filing a task for a later day", () => {
     expect(on(T0)[0].carriedTo).toBeUndefined();
   });
 
+  it("leaves a tombstone on the day it was sent from, not a silent gap", async () => {
+    // regression: a bare removal (no tombstone) meant the next sync pull
+    // couldn't tell "moved on purpose" from "never received this move",
+    // and put the task right back on the origin day a few seconds later
+    const target = addDays(T0, 4);
+    const line = newLine("task", "Auslander Email");
+    adopt(NB, T0, [line]);
+
+    await moveLineTo(NB, T0, line, target);
+
+    const stored = await db.pages.get(pageId(NB, T0));
+    const buried = stored?.lines.find((l) => l.id === line.id);
+    expect(buried?.deletedAt).toBeDefined();
+    expect(buried?.text).toBe("");
+  });
+
   it("appends rather than replacing what is already on the target day", async () => {
     const target = addDays(T0, 2);
     adopt(NB, target, [newLine("note", "already here")]);

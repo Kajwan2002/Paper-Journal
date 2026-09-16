@@ -1,12 +1,5 @@
 import { db, getPage, pageId } from "@/lib/db";
-import {
-  adopt,
-  flushAsync,
-  getCached,
-  prime,
-  writeLines,
-} from "@/lib/pageStore";
-import { savePage } from "@/lib/db";
+import { flushAsync, getCached, prime, writeLines } from "@/lib/pageStore";
 import type { DayKey } from "@/lib/date";
 import { isOpenTask, type Line } from "@/lib/rapidlog";
 
@@ -65,14 +58,20 @@ export async function moveLineTo(
     ? target.map((l) => (l.id === line.id ? live : l))
     : [...target.filter((l) => l.text.trim().length > 0), live];
 
-  adopt(notebookId, to, nextTarget);
-  await savePage(notebookId, to, nextTarget);
+  writeLines(notebookId, to, nextTarget);
 
-  // and off the day you wrote it — you sent it forward to stop seeing it
+  // and off the day you wrote it — you sent it forward to stop seeing it.
+  // Through writeLines, not a raw adopt+savePage: writeLines is what turns
+  // a line dropped from the array into a tombstone. Without one, a sync
+  // pull that still has this day's pre-move copy — the other device simply
+  // hasn't seen the move yet, or even this same device's own last push —
+  // had no way to tell "removed on purpose" from "never received", and put
+  // the task right back a few seconds later.
   const here = getCached(pageId(notebookId, from)) ?? [];
   const nextHere = here.filter((l) => l.id !== line.id);
-  adopt(notebookId, from, nextHere);
-  await savePage(notebookId, from, nextHere);
+  writeLines(notebookId, from, nextHere);
+
+  await flushAsync();
 }
 
 /** One-time repair for journals written before scheduling moved anything.
