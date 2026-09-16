@@ -1,36 +1,36 @@
 .weekfocus {
-  margin: 0 0 1.1rem;
-  padding-bottom: 0.55rem;
+  margin: 0 0 0.7rem;
+  padding-bottom: 0.35rem;
   border-bottom: 1px solid color-mix(in srgb, var(--oxblood) 22%, transparent);
 }
 
 .weekfocus__head {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.2rem;
   font-family: var(--mono);
-  font-size: 0.54rem;
-  letter-spacing: 0.2em;
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--oxblood);
 }
 
 .weekfocus__lines {
   display: grid;
-  gap: 0.1rem;
+  gap: 0.02rem;
 }
 
 .weekfocus__row {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .weekfocus__input {
   flex: 1;
   min-width: 0;
-  padding: 0.14rem 0;
+  padding: 0.04rem 0;
   font-family: var(--serif);
   font-style: italic;
-  font-size: 0.88rem;
+  font-size: 0.74rem;
   color: var(--ink-soft);
   background: transparent;
   border: 0;
@@ -49,12 +49,12 @@
 .weekfocus__dots {
   flex: none;
   display: flex;
-  gap: 0.22rem;
+  gap: 0.18rem;
 }
 
 .weekfocus__dot {
-  width: 0.4rem;
-  height: 0.4rem;
+  width: 0.32rem;
+  height: 0.32rem;
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
   background: transparent;
@@ -70,7 +70,7 @@
 .weekfocus__count {
   flex: none;
   font-family: var(--mono);
-  font-size: 0.56rem;
+  font-size: 0.5rem;
   letter-spacing: 0.04em;
   color: var(--ink-faint);
   white-space: nowrap;
@@ -78,6 +78,6 @@
 
 @media (hover: none) {
   .weekfocus__input {
-    padding: 0.22rem 0;
+    padding: 0.12rem 0;
   }
 }
