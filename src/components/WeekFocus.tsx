@@ -26,6 +26,41 @@ interface Tally {
   count: number;
 }
 
+/** A count with no target to fill toward — a line like "Gym" rather than
+ *  "Gym x3" — drawn as tally strokes instead of a number. Bundled in
+ *  fives the way a hand would actually mark them off on paper: four
+ *  strokes, then a fifth struck diagonally across them. Deliberately not
+ *  the same shape as the target dots — those answer "how close to the
+ *  goal", this just answers "how many", so it shouldn't look like an
+ *  unmet target either. */
+function TallyMarks({ count }: { count: number }) {
+  const gates = Math.floor(count / 5);
+  const remainder = count % 5;
+  return (
+    <span
+      className="weekfocus__tally"
+      role="img"
+      aria-label={`${count} time${count === 1 ? "" : "s"} this week`}
+    >
+      {Array.from({ length: gates }, (_, g) => (
+        <span className="weekfocus__gate" key={`gate-${g}`} aria-hidden="true">
+          {Array.from({ length: 4 }, (_, b) => (
+            <span className="weekfocus__tick" key={b} />
+          ))}
+          <span className="weekfocus__strike" />
+        </span>
+      ))}
+      {remainder > 0 ? (
+        <span className="weekfocus__ticks" aria-hidden="true">
+          {Array.from({ length: remainder }, (_, b) => (
+            <span className="weekfocus__tick" key={b} />
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /** There's always one more, blank line to type into — the same trick a
  *  to-do list uses — but never a saved blank: `saveFocusLines` drops empty
  *  lines before they reach storage. */
@@ -194,7 +229,7 @@ export function WeekFocus({ notebookId, date }: Props) {
                   ))}
                 </span>
               ) : t && t.count > 0 ? (
-                <span className="weekfocus__count">{t.count}× this week</span>
+                <TallyMarks count={t.count} />
               ) : null}
             </div>
           );

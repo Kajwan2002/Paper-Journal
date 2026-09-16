@@ -75,13 +75,45 @@
   border-color: var(--ink-soft);
 }
 
-.weekfocus__count {
+/* a running count with no target set — tally strokes, not a number, and a
+   different shape from the target dots on purpose: those answer "how
+   close to the goal", this just answers "how many" */
+.weekfocus__tally {
   flex: none;
-  font-family: var(--mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.04em;
-  color: var(--ink-faint);
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.16rem;
+}
+
+.weekfocus__gate,
+.weekfocus__ticks {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.055rem;
+}
+
+.weekfocus__gate {
+  position: relative;
+  padding: 0 0.02rem;
+}
+
+.weekfocus__tick {
+  width: 0.07rem;
+  height: 0.4rem;
+  background: var(--ink-soft);
+  border-radius: 1px;
+}
+
+/* the fifth stroke of a gate, drawn diagonally across the other four */
+.weekfocus__strike {
+  position: absolute;
+  left: -0.03rem;
+  right: -0.03rem;
+  top: 50%;
+  height: 0.07rem;
+  background: var(--ink-soft);
+  border-radius: 1px;
+  transform: translateY(-50%) rotate(-34deg);
 }
 
 @media (hover: none) {
