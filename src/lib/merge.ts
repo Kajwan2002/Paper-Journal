@@ -1,4 +1,4 @@
-import type { Line } from "@/lib/rapidlog";
+import { ORDER_GAP, type Line } from "@/lib/rapidlog";
 import type { Page } from "@/lib/db";
 
 /** Merging one day's page from two devices.
@@ -35,7 +35,12 @@ function newer(a: Line, b: Line): Line {
 }
 
 /** Merge two versions of the same day. Order follows `mine` where possible,
- *  so a merge never reshuffles the page under the reader. */
+ *  so a merge never reshuffles the page under the reader — except for a
+ *  line that carries an explicit `order` (one that's actually been dragged,
+ *  on either side), which sorts by that instead. Without this a reorder
+ *  could never survive a sync: the array position it changed carries no
+ *  timestamp of its own, so a merge that just followed `mine`'s structure
+ *  would silently rebuild it from whichever device happened to be pulling. */
 export function mergeLines(mine: Line[], theirs: Line[]): Line[] {
   const byId = new Map<string, Line>();
   const order: string[] = [];
@@ -54,7 +59,18 @@ export function mergeLines(mine: Line[], theirs: Line[]): Line[] {
     byId.set(line.id, newer(existing, line));
   }
 
-  return order.map((id) => byId.get(id)!).filter(Boolean);
+  // a plain array index, scaled well below any real `order` value — the
+  // fallback for a line neither side has ever actually placed by hand
+  const skeletonKey = new Map(order.map((id, i) => [id, i * ORDER_GAP]));
+
+  return [...order]
+    .sort((a, b) => {
+      const ka = byId.get(a)!.order ?? skeletonKey.get(a)!;
+      const kb = byId.get(b)!.order ?? skeletonKey.get(b)!;
+      return ka - kb;
+    })
+    .map((id) => byId.get(id)!)
+    .filter(Boolean);
 }
 
 export function mergePages(mine: Page, theirs: Page): Page {
@@ -120,6 +136,7 @@ function sameLine(a: Line, b: Line): boolean {
     a.deadline === b.deadline &&
     !!a.someday === !!b.someday &&
     a.carriedTo === b.carriedTo &&
-    (a.rolls ?? 0) === (b.rolls ?? 0)
+    (a.rolls ?? 0) === (b.rolls ?? 0) &&
+    a.order === b.order
   );
 }

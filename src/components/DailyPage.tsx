@@ -151,7 +151,9 @@ function Marginalia({
 }
 
 function StaticLines({ lines }: { lines: Line[] }) {
-  const written = lines.filter((l) => l.text.trim().length > 0);
+  // a someday line has nothing left to do on this page — it lives in Open
+  // Loops until it's picked back up, same as the interactive view
+  const written = lines.filter((l) => l.text.trim().length > 0 && !l.someday);
   const today = todayKey();
   if (written.length === 0) {
     return (
@@ -185,8 +187,6 @@ function StaticLines({ lines }: { lines: Line[] }) {
             <span className="ruled__chip ruled__chip--moved">
               → {relativeDay(l.carriedTo, today)}
             </span>
-          ) : l.someday ? (
-            <span className="ruled__chip ruled__chip--someday">someday</span>
           ) : l.due ? (
             <span className="ruled__chip">{relativeDay(l.due, today)}</span>
           ) : null}

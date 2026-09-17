@@ -1,7 +1,7 @@
 import { db, getPage, pageId } from "@/lib/db";
 import { flushAsync, getCached, prime, writeLines } from "@/lib/pageStore";
 import type { DayKey } from "@/lib/date";
-import { isOpenTask, type Line } from "@/lib/rapidlog";
+import { isOpenTask, nextOrder, type Line } from "@/lib/rapidlog";
 
 /** Filing something for a later day *moves* it there.
  *
@@ -50,6 +50,10 @@ export async function moveLineTo(
     someday: undefined,
     rolls: 0,
     origin: line.origin ?? from,
+    // landing fresh on a different page — whatever position it held on
+    // the page it came from has nothing to do with where it belongs here,
+    // so it gets a position of its own rather than dragging that along
+    order: nextOrder(),
   };
 
   const target = getCached(pageId(notebookId, to)) ?? [];

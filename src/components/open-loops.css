@@ -87,6 +87,12 @@
   color: var(--ink-faint);
 }
 
+.loops__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .loops__act {
   padding: 0.18rem 0.5rem;
   font-family: var(--mono);
@@ -115,6 +121,37 @@
   .loops__act {
     opacity: 0.65;
   }
+}
+
+/* --- setting a deadline on a someday task, right from this list -------- */
+
+.loops__deadline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0 0.5rem 1.75rem;
+}
+
+.loops__deadline-opt {
+  padding: 0.22rem 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-radius: 999px;
+  transition:
+    color 0.14s ease,
+    border-color 0.14s ease;
+}
+.loops__deadline-opt:hover {
+  color: var(--oxblood);
+  border-color: color-mix(in srgb, var(--oxblood) 35%, transparent);
+}
+.loops__deadline-opt--clear {
+  color: var(--ink-faint);
 }
 
 /* --- a parent's list, folded away until asked for ---------------------- */

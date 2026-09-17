@@ -248,10 +248,6 @@
   color: var(--oxblood);
   border-color: color-mix(in srgb, var(--oxblood) 45%, transparent);
 }
-.ruled__chip--someday {
-  color: var(--ink-faint);
-  border-color: color-mix(in srgb, var(--ink) 18%, transparent);
-}
 .ruled__row[data-struck="1"] .ruled__chip {
   opacity: 0.4;
 }

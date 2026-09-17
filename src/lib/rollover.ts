@@ -7,7 +7,13 @@ import {
   revision,
 } from "@/lib/pageStore";
 import { todayKey, type DayKey } from "@/lib/date";
-import { childRangeOf, isDue, isOpenTask, type Line } from "@/lib/rapidlog";
+import {
+  childRangeOf,
+  isDue,
+  isOpenTask,
+  nextOrder,
+  type Line,
+} from "@/lib/rapidlog";
 
 /** Task rollover / migration.
  *
@@ -80,6 +86,9 @@ async function run(notebookId: string, today: DayKey): Promise<boolean> {
           due: undefined, // its day has come; it is simply open now
           rolls: (line.rolls ?? 0) + 1,
           origin: line.origin ?? page.date,
+          // landing on today's page — the position it held on the page
+          // it's carried from has nothing to do with where it lands here
+          order: nextOrder(),
         });
         changed = true;
         return { ...line, kind: "migrated" as const, carriedTo: today };

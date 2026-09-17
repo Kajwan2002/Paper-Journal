@@ -1,18 +1,19 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  cycleKind,
   glyphFor,
   isStruck,
   isTaskKind,
   newLine,
   parseLine,
+  reorderLine,
   type Line,
 } from "@/lib/rapidlog";
 import { parseDue } from "@/lib/nldate";
@@ -54,16 +55,39 @@ export function RuledLines({
     null,
   );
 
-  // One stable blank row for an empty page. Minting a fresh line (and a
-  // fresh id) inline on every render remounted the <input> whenever anything
-  // above re-rendered, which on a phone meant the keyboard opening resized
-  // the viewport, remounted the field, and dismissed the keyboard again.
-  const blank = useMemo(() => newLine(), []);
-  const rows = lines.length > 0 ? lines : [blank];
+  // One stable blank row for whenever there's nothing open to type on — a
+  // truly untouched page, or one where every line has been parked in
+  // someday (it lives in Open Loops until it's picked back up, so the page
+  // it happens to sit on reads as if it were never written). Minting a
+  // fresh line (and a fresh id) inline on every render remounted the
+  // <input> whenever anything above re-rendered, which on a phone meant the
+  // keyboard opening resized the viewport, remounted the field, and
+  // dismissed the keyboard again.
+  //
+  // Unlike a plain empty page, "nothing open" can be entered and left any
+  // number of times over the page's life — park the last task, write a new
+  // one, park that one too — so this can't be a single id fixed for good
+  // the first time it's needed. State that remembers whether the *previous*
+  // render had something open, and mints a fresh line only on the render
+  // where that flips to false, keeps the id stable while the row is showing
+  // but never reuses one already adopted by an actual line — reusing it
+  // would mean a second real line silently sharing an id with (and
+  // overwriting) whichever one adopted it first. Comparing against state
+  // rather than a ref, and correcting it inline during render, is the
+  // supported way to derive this without an extra render's flash of
+  // nothing between "parked" and the fallback row appearing.
+  const open = lines.filter((l) => !l.someday);
+  const isOpen = open.length > 0;
+  const [blank, setBlank] = useState(() => ({ isOpen, line: newLine() }));
+  if (isOpen !== blank.isOpen) {
+    setBlank({ isOpen, line: isOpen ? blank.line : newLine() });
+  }
+  const rows = isOpen ? lines : [...lines, blank.line];
   const rowsRef = useRef(rows);
   useEffect(() => {
     rowsRef.current = rows;
   });
+  const visible = rows.filter((l) => !l.someday);
 
   const commit = useCallback(
     (next: Line[]) => onChange(next.length > 0 ? next : [newLine()]),
@@ -156,7 +180,10 @@ export function RuledLines({
   };
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>, id: string) => {
-    const idx = rows.findIndex((l) => l.id === id);
+    // navigation moves between what's actually on screen — a hidden
+    // someday line between two visible ones shouldn't be reachable by
+    // arrowing past it, or count as "the line before" for any of these
+    const idx = visible.findIndex((l) => l.id === id);
     if (idx < 0) return;
 
     // Tick a task off without leaving the keyboard. Checked before plain
@@ -167,10 +194,25 @@ export function RuledLines({
       return;
     }
 
+    // Cycle the line's type — task, priority, event, idea, note, and back —
+    // without reaching for the mouse. A breadcrumb isn't really any kind any
+    // more, so it's left alone, same as the line menu hides the picker for it.
+    if (e.key === "Enter" && e.altKey) {
+      e.preventDefault();
+      const line = visible[idx];
+      if (!line.carriedTo) {
+        patch(id, (l) => ({
+          ...l,
+          kind: cycleKind(l.kind === "done" ? "task" : l.kind),
+        }));
+      }
+      return;
+    }
+
     if (e.key === "Enter") {
       e.preventDefault();
       settleLine(id);
-      const prev = rows[idx];
+      const prev = visible[idx];
       const created = newLine(
         prev.kind === "task" ? "task" : "note",
         "",
@@ -188,7 +230,8 @@ export function RuledLines({
       e.preventDefault();
       const indent: 0 | 1 = e.shiftKey ? 0 : 1;
       const next = [...rows];
-      next[idx] = { ...next[idx], indent };
+      const at = next.findIndex((l) => l.id === id);
+      next[at] = { ...next[at], indent };
       commit(next);
       setFocusId(id);
       return;
@@ -196,37 +239,43 @@ export function RuledLines({
 
     if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
       const to = e.key === "ArrowUp" ? idx - 1 : idx + 1;
-      if (to < 0 || to >= rows.length) return;
+      if (to < 0 || to >= visible.length) return;
       e.preventDefault();
       const next = [...rows];
-      [next[idx], next[to]] = [next[to], next[idx]];
+      const from = next.findIndex((l) => l.id === id);
+      const at = next.findIndex((l) => l.id === visible[to].id);
+      [next[from], next[at]] = [next[at], next[from]];
       commit(next);
       setFocusId(id);
       return;
     }
 
-    if (e.key === "Backspace" && rows[idx].text === "" && rows.length > 1) {
+    if (
+      e.key === "Backspace" &&
+      visible[idx].text === "" &&
+      visible.length > 1
+    ) {
       e.preventDefault();
       commit(rows.filter((l) => l.id !== id));
-      const before = rows[idx - 1];
+      const before = visible[idx - 1];
       if (before) setFocusId(before.id);
       return;
     }
 
     if (e.key === "ArrowUp" && idx > 0) {
       e.preventDefault();
-      setFocusId(rows[idx - 1].id);
+      setFocusId(visible[idx - 1].id);
     }
-    if (e.key === "ArrowDown" && idx < rows.length - 1) {
+    if (e.key === "ArrowDown" && idx < visible.length - 1) {
       e.preventDefault();
-      setFocusId(rows[idx + 1].id);
+      setFocusId(visible[idx + 1].id);
     }
   };
 
   const removeLine = (id: string) => {
-    const idx = rowsRef.current.findIndex((l) => l.id === id);
+    const idx = visible.findIndex((l) => l.id === id);
     commit(rowsRef.current.filter((l) => l.id !== id));
-    const before = rowsRef.current[idx - 1];
+    const before = visible[idx - 1];
     if (before) setFocusId(before.id);
     setMenu(null);
   };
@@ -251,16 +300,19 @@ export function RuledLines({
     setDrag((d) => {
       if (!d) return d;
       const list = rowsRef.current;
-      const cur = list.findIndex((l) => l.id === d.id);
+      // the grip only exists on visible rows, and each row-height step of
+      // drag distance corresponds to a visible neighbour, not necessarily
+      // the next slot in the full (someday-including) array
+      const shown = list.filter((l) => !l.someday);
+      const cur = shown.findIndex((l) => l.id === d.id);
       if (cur < 0) return d;
       const raw = e.clientY - anchor.current.y;
       const steps = Math.round(raw / anchor.current.rowH);
-      const target = Math.max(0, Math.min(list.length - 1, cur + steps));
+      const target = Math.max(0, Math.min(shown.length - 1, cur + steps));
       if (target !== cur) {
-        const next = [...list];
-        const [moved] = next.splice(cur, 1);
-        next.splice(target, 0, moved);
-        commit(next);
+        const from = list.findIndex((l) => l.id === d.id);
+        const to = list.findIndex((l) => l.id === shown[target].id);
+        commit(reorderLine(list, from, to));
         anchor.current.y += (target - cur) * anchor.current.rowH;
         return { id: d.id, dy: e.clientY - anchor.current.y };
       }
@@ -273,12 +325,12 @@ export function RuledLines({
     setDrag(null);
   };
 
-  const pageEmpty = rows.length === 1 && rows[0].text === "";
+  const pageEmpty = visible.length === 1 && visible[0].text === "";
   const today = todayKey();
 
   return (
     <div className="ruled">
-      {rows.map((line) => {
+      {visible.map((line) => {
         const struck = isStruck(line);
         const overdue = !!line.due && line.due < today && !struck;
         return (
@@ -340,8 +392,6 @@ export function RuledLines({
               <span className="ruled__chip ruled__chip--moved">
                 → {relativeDay(line.carriedTo, today)}
               </span>
-            ) : line.someday ? (
-              <span className="ruled__chip ruled__chip--someday">someday</span>
             ) : line.due ? (
               <span
                 className={`ruled__chip ${overdue ? "ruled__chip--late" : ""}`}
@@ -373,7 +423,7 @@ export function RuledLines({
               >
                 ⋯
               </button>
-              {rows.length > 1 ? (
+              {visible.length > 1 ? (
                 <button
                   type="button"
                   className="ruled__grip"
