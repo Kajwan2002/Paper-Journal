@@ -107,7 +107,7 @@ describe("finding deadlines across the notebook", () => {
     ]);
   });
 
-  it("ignores finished work, breadcrumbs and someday", async () => {
+  it("ignores finished work and breadcrumbs", async () => {
     await put(T0, [
       { ...newLine("task", "done"), deadline: T0, struck: true },
       {
@@ -115,9 +115,18 @@ describe("finding deadlines across the notebook", () => {
         deadline: T0,
         carriedTo: addDays(T0, 1),
       },
-      { ...newLine("task", "parked"), deadline: T0, someday: true },
       { ...newLine("task", "real"), deadline: T0 },
     ]);
     expect((await comingDue(NB)).map((d) => d.line.text)).toEqual(["real"]);
+  });
+
+  it("still surfaces a someday task once it's given a deadline", async () => {
+    // parked in someday means "no day chosen" — it doesn't mean the
+    // deadline someone set on it from Open Loops should go unheard
+    await put(T0, [
+      { ...newLine("task", "parked"), deadline: T0, someday: true },
+      { ...newLine("task", "not parked"), someday: true },
+    ]);
+    expect((await comingDue(NB)).map((d) => d.line.text)).toEqual(["parked"]);
   });
 });

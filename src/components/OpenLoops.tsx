@@ -4,10 +4,18 @@ import { pageId } from "@/lib/db";
 import { openLoops, type Loop } from "@/lib/rollover";
 import { toggleStruck } from "@/lib/tick";
 import { glyphFor, isStruck, type Line } from "@/lib/rapidlog";
-import { relativeDay, todayKey, type DayKey } from "@/lib/date";
+import {
+  addDays,
+  endOfMonth,
+  nextWeekday,
+  relativeDay,
+  todayKey,
+  type DayKey,
+} from "@/lib/date";
 import { deadlineLabel, urgencyOf } from "@/lib/deadline";
 import { useSession } from "@/state/session";
 import { Sheet } from "@/components/Sheet";
+import { DayPicker } from "@/components/DayPicker";
 import "./open-loops.css";
 
 interface Props {
@@ -46,17 +54,28 @@ const HEADINGS: Record<Bucket, string> = {
 export function OpenLoops({ notebookId, onClose }: Props) {
   const [loops, setLoops] = useState<Loop[] | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // a someday task has no page of its own to open the line menu on — this
+  // is the same deadline picker, just reachable from here instead
+  const [deadlineFor, setDeadlineFor] = useState<string | null>(null);
+  const [pickingDay, setPickingDay] = useState(false);
   const goToDate = useSession((s) => s.goToDate);
   const today = todayKey();
+
+  const byWhen: Array<[string, DayKey]> = [
+    ["End of this week", nextWeekday(today, 0)],
+    ["In two weeks", addDays(today, 14)],
+    ["End of the month", endOfMonth(today)],
+  ];
 
   const reload = () => {
     void openLoops(notebookId).then(setLoops);
   };
   useEffect(reload, [notebookId]);
 
-  /** Edit a line in place, on whatever page it actually lives on. Used only
-   *  for the someday / pick-up toggle — striking a line goes through the
-   *  shared `toggleStruck`, which also cascades onto its children. */
+  /** Edit a line in place, on whatever page it actually lives on. Used for
+   *  the someday / pick-up toggle and for setting a deadline from here —
+   *  striking a line goes through the shared `toggleStruck`, which also
+   *  cascades onto its children. */
   const patch = async (
     date: DayKey,
     id: string,
@@ -70,6 +89,16 @@ export function OpenLoops({ notebookId, onClose }: Props) {
       lines.map((l) => (l.id === id ? change(l) : l)),
     );
     reload();
+  };
+
+  const setDeadline = (
+    date: DayKey,
+    id: string,
+    deadline: DayKey | undefined,
+  ) => {
+    void patch(date, id, (l) => ({ ...l, deadline }));
+    setDeadlineFor(null);
+    setPickingDay(false);
   };
 
   const visit = (date: DayKey) => {
@@ -171,19 +200,34 @@ export function OpenLoops({ notebookId, onClose }: Props) {
                             </button>
                           ) : null}
                           {bucket === "someday" ? (
-                            <button
-                              type="button"
-                              className="loops__act"
-                              onClick={() =>
-                                void patch(date, line.id, (l) => ({
-                                  ...l,
-                                  someday: undefined,
-                                  due: undefined,
-                                }))
-                              }
-                            >
-                              pick up
-                            </button>
+                            <div className="loops__actions">
+                              <button
+                                type="button"
+                                className="loops__act"
+                                onClick={() =>
+                                  void patch(date, line.id, (l) => ({
+                                    ...l,
+                                    someday: undefined,
+                                    due: undefined,
+                                  }))
+                                }
+                              >
+                                pick up
+                              </button>
+                              <button
+                                type="button"
+                                className="loops__act"
+                                aria-expanded={deadlineFor === line.id}
+                                onClick={() =>
+                                  setDeadlineFor((cur) => {
+                                    setPickingDay(false);
+                                    return cur === line.id ? null : line.id;
+                                  })
+                                }
+                              >
+                                {line.deadline ? "deadline" : "set deadline"}
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"
@@ -201,6 +245,51 @@ export function OpenLoops({ notebookId, onClose }: Props) {
                             </button>
                           )}
                         </div>
+
+                        {bucket === "someday" && deadlineFor === line.id ? (
+                          <div className="loops__deadline">
+                            {pickingDay ? (
+                              <DayPicker
+                                value={line.deadline ?? today}
+                                onPick={(d) => setDeadline(date, line.id, d)}
+                                autoFocus
+                              />
+                            ) : (
+                              <>
+                                {byWhen.map(([label, day]) => (
+                                  <button
+                                    key={label}
+                                    type="button"
+                                    className="loops__deadline-opt"
+                                    onClick={() =>
+                                      setDeadline(date, line.id, day)
+                                    }
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                                <button
+                                  type="button"
+                                  className="loops__deadline-opt"
+                                  onClick={() => setPickingDay(true)}
+                                >
+                                  Pick a day…
+                                </button>
+                                {line.deadline ? (
+                                  <button
+                                    type="button"
+                                    className="loops__deadline-opt loops__deadline-opt--clear"
+                                    onClick={() =>
+                                      setDeadline(date, line.id, undefined)
+                                    }
+                                  >
+                                    Clear deadline
+                                  </button>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                        ) : null}
 
                         {hasChildren && isOpen ? (
                           <ul className="loops__children">

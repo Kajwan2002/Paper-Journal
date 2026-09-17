@@ -63,8 +63,11 @@ export interface Due {
 }
 
 /** Every unfinished task with a deadline, wherever in the notebook it is
- *  sitting — including on pages far in the future, which is the whole
- *  point. Sorted most urgent first. */
+ *  sitting — including on pages far in the future, and including one
+ *  parked in someday. Someday means "I'm not picking a day for this", not
+ *  "there's no deadline" — a task can answer to a date without living on
+ *  one, so a deadline set from Open Loops still has to reach this list.
+ *  Sorted most urgent first. */
 export async function deadlines(notebookId: string): Promise<Due[]> {
   await flushAsync();
   const pages = await db.pages.where("notebookId").equals(notebookId).toArray();
@@ -74,7 +77,7 @@ export async function deadlines(notebookId: string): Promise<Due[]> {
   for (const page of pages) {
     const lines = getCached(pageId(notebookId, page.date)) ?? page.lines;
     for (const line of lines) {
-      if (!line.deadline || line.carriedTo || line.someday) continue;
+      if (!line.deadline || line.carriedTo) continue;
       if (!isOpenTask(line)) continue;
       out.push({
         date: page.date,
