@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   childRangeOf,
+  cycleKind,
   isDue,
   isOpenTask,
   isStruck,
   newLine,
   parseLine,
+  QUICK_KINDS,
   tapSignifier,
   toggleWithChildren,
   type Line,
@@ -214,5 +216,20 @@ describe("isDue", () => {
     expect(
       isDue(task({ due: "2026-09-11", deadline: "2026-09-20" }), today),
     ).toBe(false);
+  });
+});
+
+describe("cycleKind", () => {
+  it("steps through the tray in order and wraps back to the start", () => {
+    let kind = QUICK_KINDS[0];
+    for (const expected of [...QUICK_KINDS.slice(1), QUICK_KINDS[0]]) {
+      kind = cycleKind(kind);
+      expect(kind).toBe(expected);
+    }
+  });
+
+  it("sends a kind outside the tray to the first one, not off the end", () => {
+    expect(cycleKind("done")).toBe(QUICK_KINDS[0]);
+    expect(cycleKind("migrated")).toBe(QUICK_KINDS[0]);
   });
 });

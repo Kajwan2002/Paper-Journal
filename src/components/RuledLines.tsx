@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  cycleKind,
   glyphFor,
   isStruck,
   isTaskKind,
@@ -190,6 +191,21 @@ export function RuledLines({
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       strike(id);
+      return;
+    }
+
+    // Cycle the line's type — task, priority, event, idea, note, and back —
+    // without reaching for the mouse. A breadcrumb isn't really any kind any
+    // more, so it's left alone, same as the line menu hides the picker for it.
+    if (e.key === "Enter" && e.altKey) {
+      e.preventDefault();
+      const line = visible[idx];
+      if (!line.carriedTo) {
+        patch(id, (l) => ({
+          ...l,
+          kind: cycleKind(l.kind === "done" ? "task" : l.kind),
+        }));
+      }
       return;
     }
 

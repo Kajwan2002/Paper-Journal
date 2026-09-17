@@ -136,6 +136,16 @@ export const QUICK_KINDS: LineKind[] = [
   "note",
 ];
 
+/** Step to the next kind in tray order, wrapping around — what Alt+Enter
+ *  cycles through on a line, the keyboard equivalent of tapping through
+ *  "Change to" in the line menu. A kind that isn't in the tray (the legacy
+ *  "done", or a carried breadcrumb's "migrated") lands on the first one,
+ *  same as the line menu already treats them as closest to a plain task. */
+export function cycleKind(kind: LineKind): LineKind {
+  const at = QUICK_KINDS.indexOf(kind);
+  return QUICK_KINDS[(at + 1) % QUICK_KINDS.length];
+}
+
 /** Typed prefixes -> partial line. Prefix is stripped from the stored text. */
 const PREFIXES: Array<[RegExp, Partial<Line> & { kind: LineKind }]> = [
   [/^\s*[-•]\s+/, { kind: "task" }],
