@@ -13,6 +13,7 @@ import {
   isTaskKind,
   newLine,
   parseLine,
+  reorderLine,
   type Line,
 } from "@/lib/rapidlog";
 import { parseDue } from "@/lib/nldate";
@@ -257,10 +258,7 @@ export function RuledLines({
       const steps = Math.round(raw / anchor.current.rowH);
       const target = Math.max(0, Math.min(list.length - 1, cur + steps));
       if (target !== cur) {
-        const next = [...list];
-        const [moved] = next.splice(cur, 1);
-        next.splice(target, 0, moved);
-        commit(next);
+        commit(reorderLine(list, cur, target));
         anchor.current.y += (target - cur) * anchor.current.rowH;
         return { id: d.id, dy: e.clientY - anchor.current.y };
       }

@@ -46,7 +46,31 @@ export interface Line {
    *  device that still has the line learns it is gone rather than putting
    *  it back. Never reaches the UI — the page store filters them out. */
   deletedAt?: number;
+  /** where this line sits on the page, for lines that have ever actually
+   *  been dragged. Absent on everything else — most lines just sit wherever
+   *  they were written, and a merge falls back to the array position for
+   *  those. Only a real drag stamps this, which is what lets a reorder
+   *  survive a sync instead of the array position it changed being silently
+   *  rebuilt from whichever device happened to be pulling. */
+  order?: number;
 }
+
+/** A number for a freshly-placed line to sort by — monotonic even across
+ *  several calls in the same millisecond, so lines created in a tight loop
+ *  (rollover carrying a dozen tasks forward at once) still land in a
+ *  stable, distinct order rather than tying. */
+let lastOrder = 0;
+export function nextOrder(): number {
+  lastOrder = Math.max(Date.now(), lastOrder + 1);
+  return lastOrder;
+}
+
+/** The gap a freshly-computed fallback position leaves between neighbours —
+ *  small next to `nextOrder()`'s millisecond-since-epoch scale, so a page
+ *  that has never been touched by a drag still sorts by its plain array
+ *  order (each line `index * ORDER_GAP` apart) without ever outranking a
+ *  line that actually has been placed somewhere on purpose. */
+export const ORDER_GAP = 1000;
 
 export function isStruck(line: Pick<Line, "kind" | "struck">): boolean {
   return line.struck === true || line.kind === "done";
@@ -208,4 +232,43 @@ export function newLine(
   indent: 0 | 1 = 0,
 ): Line {
   return { id: newId(), kind, text, indent };
+}
+
+/** Move the line at `from` to `to`, and stamp *only* that line with an
+ *  `order` placing it between its new neighbours. That single stamp is
+ *  what lets a drag survive a sync — see `mergeLines`. Every other line
+ *  on the page is returned untouched, on purpose: giving the whole page a
+ *  fresh position on every drag would let a reorder that only meant to
+ *  move one line outrank a genuine, older, unrelated edit made to some
+ *  other line on another device in the meantime. */
+export function reorderLine(lines: Line[], from: number, to: number): Line[] {
+  const target = Math.max(0, Math.min(lines.length - 1, to));
+  if (from === target || from < 0 || from >= lines.length) return lines;
+
+  const next = [...lines];
+  const [moved] = next.splice(from, 1);
+  next.splice(target, 0, moved);
+
+  // neighbours' fallback keys use their position in the array as it was
+  // *before* this move — the same array every other device still has, so
+  // an untouched neighbour's guessed key lines up with what a merge will
+  // independently compute for it there too
+  const origIndex = new Map(lines.map((l, i) => [l.id, i]));
+  const keyOf = (line: Line | undefined) =>
+    line
+      ? (line.order ?? (origIndex.get(line.id) ?? 0) * ORDER_GAP)
+      : undefined;
+  const before = keyOf(next[target - 1]);
+  const after = keyOf(next[target + 1]);
+  const order =
+    before !== undefined && after !== undefined
+      ? (before + after) / 2
+      : before !== undefined
+        ? before + ORDER_GAP
+        : after !== undefined
+          ? after - ORDER_GAP
+          : nextOrder();
+
+  next[target] = { ...moved, order };
+  return next;
 }
