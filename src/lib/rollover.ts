@@ -7,13 +7,7 @@ import {
   revision,
 } from "@/lib/pageStore";
 import { todayKey, type DayKey } from "@/lib/date";
-import {
-  childRangeOf,
-  isDue,
-  isOpenTask,
-  nextOrder,
-  type Line,
-} from "@/lib/rapidlog";
+import { childRangeOf, isDue, isOpenTask, type Line } from "@/lib/rapidlog";
 
 /** Task rollover / migration.
  *
@@ -87,8 +81,17 @@ async function run(notebookId: string, today: DayKey): Promise<boolean> {
           rolls: (line.rolls ?? 0) + 1,
           origin: line.origin ?? page.date,
           // landing on today's page — the position it held on the page
-          // it's carried from has nothing to do with where it lands here
-          order: nextOrder(),
+          // it's carried from has nothing to do with where it lands here,
+          // so it drops out of the explicit-order scheme entirely rather
+          // than getting a fresh stamp: `order` on a real drag is deliberately
+          // scaled to sit among that page's own skeleton (array-index)
+          // fallbacks, but `nextOrder()`'s timestamp scale is enormous next
+          // to those — stamping every rollover with one made a page's carried
+          // tasks permanently outrank anything freshly typed after them, so a
+          // brand new line always sorted above every migrated one. Falling
+          // back to plain array position (it's appended to the end) is both
+          // simpler and correct.
+          order: undefined,
         });
         changed = true;
         return { ...line, kind: "migrated" as const, carriedTo: today };

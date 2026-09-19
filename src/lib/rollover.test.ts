@@ -46,6 +46,17 @@ describe("rolloverToToday", () => {
     expect(linesOn(yesterday)[0].kind).toBe("migrated");
   });
 
+  it("doesn't stamp a carried task's order — it would permanently outrank anything typed later", async () => {
+    // regression: rollover used to give every carried task a fresh
+    // Date.now()-scale `order`, which dwarfs the plain array-index scale a
+    // page sorts by when nothing has an explicit order — so a brand new
+    // line always sorted above every migrated one after the next sync
+    const yesterday = addDays(today, -1);
+    await put(yesterday, [newLine("task", "post the form")]);
+    await rolloverToToday(NB);
+    expect(linesOn(today)[0].order).toBeUndefined();
+  });
+
   it("is idempotent — running it twice carries nothing extra", async () => {
     await put(addDays(today, -1), [newLine("task", "post the form")]);
     await rolloverToToday(NB);
