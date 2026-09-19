@@ -29,6 +29,10 @@ describe("filing a task for a later day", () => {
     expect(textsOn(target)).toEqual(["book the ferry"]);
     expect(on(target)[0].carriedTo).toBeUndefined();
     expect(on(target)[0].origin).toBe(T0);
+    // regression: a fresh Date.now()-scale `order` here would permanently
+    // outrank anything typed on the target day afterward, since that scale
+    // dwarfs the plain array-index one a page sorts by without one
+    expect(on(target)[0].order).toBeUndefined();
   });
 
   it("takes it off the day you wrote it — that is the point of sending it on", async () => {

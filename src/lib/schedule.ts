@@ -1,7 +1,7 @@
 import { db, getPage, pageId } from "@/lib/db";
 import { flushAsync, getCached, prime, writeLines } from "@/lib/pageStore";
 import type { DayKey } from "@/lib/date";
-import { isOpenTask, nextOrder, type Line } from "@/lib/rapidlog";
+import { isOpenTask, type Line } from "@/lib/rapidlog";
 
 /** Filing something for a later day *moves* it there.
  *
@@ -51,9 +51,13 @@ export async function moveLineTo(
     rolls: 0,
     origin: line.origin ?? from,
     // landing fresh on a different page — whatever position it held on
-    // the page it came from has nothing to do with where it belongs here,
-    // so it gets a position of its own rather than dragging that along
-    order: nextOrder(),
+    // the page it came from has nothing to do with where it belongs here.
+    // Clearing it rather than stamping a fresh `nextOrder()` matters: that
+    // timestamp scale is enormous next to the array-index scale a plain
+    // page sorts by, so every moved line would permanently outrank
+    // anything typed after it. Falling back to plain array position (it's
+    // appended to the end of the target day) is both simpler and correct.
+    order: undefined,
   };
 
   const target = getCached(pageId(notebookId, to)) ?? [];

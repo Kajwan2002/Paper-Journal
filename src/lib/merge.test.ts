@@ -97,6 +97,33 @@ describe("mergeLines", () => {
     const merged = mergeLines(mine, theirs);
     expect(merged.find((l) => l.id === b.id)?.text).toBe("b edited");
   });
+
+  it("a freshly typed line doesn't get outranked by an old migrated one", () => {
+    // regression: "when I add something on PC anywhere, doesn't matter,
+    // after a few seconds it moves it all the way to the top" — a carried
+    // task used to be stamped with a fresh Date.now()-scale `order`, which
+    // dwarfs the array-index scale a page sorts by without one. Once a page
+    // had any migrated tasks on it (the common case — rollover runs every
+    // day), every new line landed above all of them on the next sync.
+    const breakfast = newLine("event", "Breakfast");
+    const work = newLine("event", "Work");
+    // a migrated task, the way rollover leaves it once fixed — no order
+    const csLesson = { ...newLine("migrated", "CS Lesson") };
+    const art = newLine("task", "3D Art");
+    const mine = [breakfast, work, csLesson, art];
+    const theirs = mine;
+
+    const guitar = newLine("task", "Practice Guitar");
+    const mineWithNew = stampEdits([...mine, guitar], mine, Date.now());
+
+    expect(mergeLines(mineWithNew, theirs).map((l) => l.text)).toEqual([
+      "Breakfast",
+      "Work",
+      "CS Lesson",
+      "3D Art",
+      "Practice Guitar",
+    ]);
+  });
 });
 
 describe("withTombstones", () => {
