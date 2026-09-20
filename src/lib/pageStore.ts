@@ -1,6 +1,6 @@
 import { getPage, pageId, savePage } from "@/lib/db";
 import type { Line } from "@/lib/rapidlog";
-import { living, stampEdits, withTombstones } from "@/lib/merge";
+import { living, stampEdits, withOrder, withTombstones } from "@/lib/merge";
 import type { DayKey } from "@/lib/date";
 
 /** A tiny in-memory cache over the Dexie page records so that flipping
@@ -119,10 +119,11 @@ export function writeLines(
   const key = pageId(notebookId, date);
   meta.set(key, { notebookId, date });
 
-  // stamp what actually changed, and record what disappeared, so two
-  // devices can be merged later without guessing which edit came first
+  // stamp what actually changed, record what disappeared, and give anything
+  // that hasn't got one a position on the page, so two devices can be merged
+  // later without guessing which edit came first or where a line belongs
   const previous = cache.get(key) ?? [];
-  const stamped = stampEdits(lines, previous);
+  const stamped = withOrder(stampEdits(lines, previous));
   const withGraves = withTombstones(stamped, previous);
   const graves = [
     ...(buried.get(key) ?? []),

@@ -34,13 +34,67 @@ function newer(a: Line, b: Line): Line {
   return JSON.stringify(a) <= JSON.stringify(b) ? a : b;
 }
 
-/** Merge two versions of the same day. Order follows `mine` where possible,
- *  so a merge never reshuffles the page under the reader — except for a
- *  line that carries an explicit `order` (one that's actually been dragged,
- *  on either side), which sorts by that instead. Without this a reorder
- *  could never survive a sync: the array position it changed carries no
- *  timestamp of its own, so a merge that just followed `mine`'s structure
- *  would silently rebuild it from whichever device happened to be pulling. */
+/** Where a line sits is settled on its own stamp, not on `editedAt`. Drag a
+ *  line on the phone while rewriting it on the pc and both should land: the
+ *  move is not an edit and the edit is not a move. */
+function placedLater(a: Line, b: Line): Line {
+  const pa = a.orderedAt ?? 0;
+  const pb = b.orderedAt ?? 0;
+  if (pa !== pb) return pa > pb ? a : b;
+  if (a.order !== b.order) return (a.order ?? 0) < (b.order ?? 0) ? a : b;
+  return a;
+}
+
+/** Give every line a position on the page's own scale, filling in the ones
+ *  that haven't got one from the neighbours that have. Called on every
+ *  write, so a page settles into positions that a merge can sort by without
+ *  ever falling back to an array index — an index shifts whenever anything
+ *  above it is added or removed, and mixing shifting keys with fixed ones is
+ *  what used to make a page reshuffle itself seconds after being written on.
+ *
+ *  Only untouched-by-number lines are given one, so an ordinary write leaves
+ *  every position on the page exactly as it found it. */
+export function withOrder(lines: Line[], now = Date.now()): Line[] {
+  if (lines.every((l) => l.order !== undefined)) return lines;
+
+  const out = [...lines];
+  let i = 0;
+  while (i < out.length) {
+    if (out[i].order !== undefined) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < out.length && out[j].order === undefined) j++;
+    // whatever sits either side of this run already has a position, so the
+    // run is shared out between them rather than counted from anywhere
+    const lo = i > 0 ? out[i - 1].order : undefined;
+    const hi = j < out.length ? out[j].order : undefined;
+    const span = j - i;
+    for (let k = 0; k < span; k++) {
+      const order =
+        lo !== undefined && hi !== undefined
+          ? lo + ((hi - lo) / (span + 1)) * (k + 1)
+          : lo !== undefined
+            ? lo + ORDER_GAP * (k + 1)
+            : hi !== undefined
+              ? hi - ORDER_GAP * (span - k)
+              : k * ORDER_GAP;
+      out[i + k] = { ...out[i + k], order, orderedAt: now };
+    }
+    i = j;
+  }
+  return out;
+}
+
+/** Merge two versions of the same day, sorting the result by the position
+ *  every line carries. A line both sides have takes its words from whichever
+ *  was edited later and its position from whichever was placed later, which
+ *  are deliberately two different questions.
+ *
+ *  A line that still has no position — one written by a device that hasn't
+ *  learnt to record them — falls back to where it sits in `mine`, and the
+ *  next write gives it a real one. */
 export function mergeLines(mine: Line[], theirs: Line[]): Line[] {
   const byId = new Map<string, Line>();
   const order: string[] = [];
@@ -56,21 +110,22 @@ export function mergeLines(mine: Line[], theirs: Line[]): Line[] {
       order.push(line.id);
       continue;
     }
-    byId.set(line.id, newer(existing, line));
+    const said = newer(existing, line);
+    const placed = placedLater(existing, line);
+    byId.set(
+      line.id,
+      said === placed
+        ? said
+        : { ...said, order: placed.order, orderedAt: placed.orderedAt },
+    );
   }
 
-  // a plain array index, scaled well below any real `order` value — the
-  // fallback for a line neither side has ever actually placed by hand
-  const skeletonKey = new Map(order.map((id, i) => [id, i * ORDER_GAP]));
+  const fallback = new Map(order.map((id, i) => [id, i * ORDER_GAP]));
+  const keyOf = (id: string) => byId.get(id)!.order ?? fallback.get(id)!;
 
   return [...order]
-    .sort((a, b) => {
-      const ka = byId.get(a)!.order ?? skeletonKey.get(a)!;
-      const kb = byId.get(b)!.order ?? skeletonKey.get(b)!;
-      return ka - kb;
-    })
-    .map((id) => byId.get(id)!)
-    .filter(Boolean);
+    .sort((a, b) => keyOf(a) - keyOf(b) || (a < b ? -1 : a > b ? 1 : 0))
+    .map((id) => byId.get(id)!);
 }
 
 export function mergePages(mine: Page, theirs: Page): Page {
@@ -136,7 +191,10 @@ function sameLine(a: Line, b: Line): boolean {
     a.deadline === b.deadline &&
     !!a.someday === !!b.someday &&
     a.carriedTo === b.carriedTo &&
-    (a.rolls ?? 0) === (b.rolls ?? 0) &&
-    a.order === b.order
+    (a.rolls ?? 0) === (b.rolls ?? 0)
+    // `order` is deliberately not here: where a line sits is not something
+    // it *said*, and stamping `editedAt` for a move would let dragging a
+    // line on one device beat rewriting it on another. It settles on
+    // `orderedAt` instead.
   );
 }
