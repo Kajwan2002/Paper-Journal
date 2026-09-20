@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { living, mergeLines, stampEdits, withTombstones } from "@/lib/merge";
+import {
+  living,
+  mergeLines,
+  stampEdits,
+  withOrder,
+  withTombstones,
+} from "@/lib/merge";
 import { newLine, reorderGroup, type Line } from "@/lib/rapidlog";
 
 const at = (line: Line, editedAt: number): Line => ({ ...line, editedAt });
+
+/** What a page write does to the lines on their way to storage. */
+const written = (next: Line[], previous: Line[], now: number) =>
+  withOrder(stampEdits(next, previous, now), now);
 
 describe("mergeLines", () => {
   it("keeps a line only one device has", () => {
@@ -71,10 +81,13 @@ describe("mergeLines", () => {
     // regression: "the order of things doesn't get synced if i move a task
     // up or down". mine is a device that never touched this page; theirs
     // dragged "c" up above "a" — simulated the way it actually happens,
-    // reorderGroup followed by the same stampEdits a real write goes through.
-    const [a, b, c] = ["a", "b", "c"].map((t) => newLine("task", t));
-    const mine = [a, b, c];
-    const theirs = stampEdits(reorderGroup(mine, 2, 0), mine, 100);
+    // reorderGroup followed by the same write a real drag goes through.
+    const mine = written(
+      ["a", "b", "c"].map((t) => newLine("task", t)),
+      [],
+      10,
+    );
+    const theirs = written(reorderGroup(mine, 2, 0), mine, 100);
     expect(mergeLines(mine, theirs).map((l) => l.text)).toEqual([
       "c",
       "a",
@@ -89,14 +102,19 @@ describe("mergeLines", () => {
   });
 
   it("carries a whole dragged group across a sync, still in one piece", () => {
-    const shopping = newLine("task", "DM Shopping");
-    const pads = newLine("note", "Pads", 1);
-    const hangers = newLine("note", "Hangers", 1);
-    const breakfast = newLine("task", "Breakfast");
-    const work = newLine("task", "Work");
-    const mine = [shopping, pads, hangers, breakfast, work];
+    const mine = written(
+      [
+        newLine("task", "DM Shopping"),
+        newLine("note", "Pads", 1),
+        newLine("note", "Hangers", 1),
+        newLine("task", "Breakfast"),
+        newLine("task", "Work"),
+      ],
+      [],
+      10,
+    );
     // the other device drags the shopping list down below "Work"
-    const theirs = stampEdits(reorderGroup(mine, 0, 3), mine, 100);
+    const theirs = written(reorderGroup(mine, 0, 3), mine, 100);
     const landed = ["Breakfast", "Work", "DM Shopping", "Pads", "Hangers"];
 
     expect(mergeLines(mine, theirs).map((l) => l.text)).toEqual(landed);
@@ -156,6 +174,37 @@ describe("withTombstones", () => {
   it("does nothing when nothing was removed", () => {
     const a = newLine("task", "kept");
     expect(withTombstones([a], [a], 99)).toHaveLength(1);
+  });
+});
+
+describe("withOrder", () => {
+  it("gives every line a position, in the order they sit in", () => {
+    const out = withOrder(
+      ["a", "b", "c"].map((t) => newLine("task", t)),
+      5,
+    );
+    const orders = out.map((l) => l.order!);
+    expect(orders.every((o) => typeof o === "number")).toBe(true);
+    expect([...orders].sort((x, y) => x - y)).toEqual(orders);
+    expect(out.every((l) => l.orderedAt === 5)).toBe(true);
+  });
+
+  it("fits a new line between the two it was written between", () => {
+    const [a, c] = [newLine("task", "a"), newLine("task", "c")];
+    const placed = withOrder([a, c], 5);
+    const b = newLine("task", "b");
+    const out = withOrder([placed[0], b, placed[1]], 9);
+    expect(out[1].order!).toBeGreaterThan(out[0].order!);
+    expect(out[1].order!).toBeLessThan(out[2].order!);
+  });
+
+  it("leaves a line that already has a position exactly where it was", () => {
+    const placed = withOrder(
+      ["a", "b"].map((t) => newLine("task", t)),
+      5,
+    );
+    const again = withOrder(placed, 99);
+    expect(again).toBe(placed); // nothing to do, so nothing is rewritten
   });
 });
 

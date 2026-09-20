@@ -4,7 +4,7 @@ import { db, pageId } from "@/lib/db";
 import { adopt, flushAsync, getCached } from "@/lib/pageStore";
 import { moveLineTo, settleLegacySchedules } from "@/lib/schedule";
 import { setStruckAcrossChain } from "@/lib/chain";
-import { isStruck, newLine, tapSignifier } from "@/lib/rapidlog";
+import { isStruck, newLine, ORDER_GAP, tapSignifier } from "@/lib/rapidlog";
 import { addDays, todayKey } from "@/lib/date";
 
 const NB = "nb-move";
@@ -29,10 +29,12 @@ describe("filing a task for a later day", () => {
     expect(textsOn(target)).toEqual(["book the ferry"]);
     expect(on(target)[0].carriedTo).toBeUndefined();
     expect(on(target)[0].origin).toBe(T0);
-    // regression: a fresh Date.now()-scale `order` here would permanently
-    // outrank anything typed on the target day afterward, since that scale
-    // dwarfs the plain array-index one a page sorts by without one
-    expect(on(target)[0].order).toBeUndefined();
+    // it takes its position from the day it lands on, not the one it left:
+    // a wall-clock number here used to dwarf that page's own scale and
+    // permanently outrank anything typed after it
+    const landed = on(target)[0].order!;
+    expect(landed).toBeGreaterThanOrEqual(0);
+    expect(landed).toBeLessThan(ORDER_GAP * 10);
   });
 
   it("takes the list under it along, rather than orphaning it", async () => {

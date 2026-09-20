@@ -7,7 +7,6 @@ import {
   isOpenTask,
   isStruck,
   newLine,
-  ORDER_GAP,
   parseLine,
   QUICK_KINDS,
   reorderGroup,
@@ -183,15 +182,14 @@ describe("reorderGroup", () => {
     ]);
   });
 
-  it("orders the moved block between its new neighbours, in its own order", () => {
+  it("drops the moved block's positions for the write to settle", () => {
+    // where the block sat says nothing about where it is now, and guessing
+    // at its new neighbours' positions here — when one of them may not have
+    // a real one yet — is how lines end up crossing over each other
     const moved = reorderGroup(page(), 0, 3);
-    const orders = moved.slice(2).map((l) => l.order!);
-    expect(orders.every((o) => typeof o === "number")).toBe(true);
-    // strictly increasing, so the list keeps its sequence
-    expect([...orders].sort((a, b) => a - b)).toEqual(orders);
-    // and all of it sorts after "Work", which it was dragged below — an
-    // untouched line's key is its old array index on the same scale
-    expect(Math.min(...orders)).toBeGreaterThan(4 * ORDER_GAP);
+    expect(moved.slice(2).every((l) => l.order === undefined)).toBe(true);
+    // and the lines it moved past keep whatever they had
+    expect(moved.slice(0, 2).map((l) => l.text)).toEqual(["Breakfast", "Work"]);
   });
 
   it("leaves the lines that didn't move completely untouched", () => {

@@ -46,13 +46,24 @@ export interface Line {
    *  device that still has the line learns it is gone rather than putting
    *  it back. Never reaches the UI — the page store filters them out. */
   deletedAt?: number;
-  /** where this line sits on the page, for lines that have ever actually
-   *  been dragged. Absent on everything else — most lines just sit wherever
-   *  they were written, and a merge falls back to the array position for
-   *  those. Only a real drag stamps this, which is what lets a reorder
-   *  survive a sync instead of the array position it changed being silently
-   *  rebuilt from whichever device happened to be pulling. */
+  /** where this line sits on the page. Filled in on write for any line that
+   *  doesn't have one yet, so every line on a page carries a position on
+   *  one shared scale — which is what lets a reorder survive a sync instead
+   *  of the array position it changed being rebuilt from whichever device
+   *  happened to be pulling.
+   *
+   *  It has to be every line, not just dragged ones. Sorting a page where
+   *  some lines carried a fixed number and the rest fell back to their array
+   *  index meant the two drifted apart the moment anything was added or
+   *  removed — every fallback shifted by a notch while the fixed numbers
+   *  stayed put, so lines crossed over each other and the page quietly
+   *  reshuffled a few seconds after being written on. */
   order?: number;
+  /** when `order` was last set. Kept apart from `editedAt` because where a
+   *  line sits and what it says are separate facts: dragging a line on one
+   *  device must not outrank rewriting it on the other, and rewriting it
+   *  must not drag it back. Each is resolved on its own stamp. */
+  orderedAt?: number;
 }
 
 /** The gap a freshly-computed position leaves between neighbours. Every
@@ -276,34 +287,12 @@ export function reorderGroup(lines: Line[], from: number, to: number): Line[] {
   }
   if (at === start) return lines;
 
-  const next = [...rest.slice(0, at), ...block, ...rest.slice(at)];
-
-  // neighbours' fallback keys use their position in the array as it was
-  // *before* this move — the same array every other device still has, so
-  // an untouched neighbour's guessed key lines up with what a merge will
-  // independently compute for it there too
-  const origIndex = new Map(lines.map((l, i) => [l.id, i]));
-  const keyOf = (line: Line | undefined) =>
-    line
-      ? (line.order ?? (origIndex.get(line.id) ?? 0) * ORDER_GAP)
-      : undefined;
-  const before = keyOf(next[at - 1]);
-  const after = keyOf(next[at + block.length]);
-  // the block has to fit *between* the two, so the gap is shared out
-  // rather than each line taking the same step
-  const orders =
-    before !== undefined && after !== undefined
-      ? block.map(
-          (_, i) => before + ((after - before) / (block.length + 1)) * (i + 1),
-        )
-      : before !== undefined
-        ? block.map((_, i) => before + ORDER_GAP * (i + 1))
-        : after !== undefined
-          ? block.map((_, i) => after - ORDER_GAP * (block.length - i))
-          : block.map((_, i) => i * ORDER_GAP);
-
-  for (let i = 0; i < block.length; i++) {
-    next[at + i] = { ...block[i], order: orders[i] };
-  }
-  return next;
+  // Wherever the block sat is no longer where it is, so its old positions
+  // are dropped and the write gives it fresh ones between its new
+  // neighbours. Working them out here instead would mean guessing at the
+  // neighbours' positions whenever one of them hasn't got a real one yet,
+  // and a guess that disagrees with what the write later settles on is
+  // exactly how lines end up crossing over each other.
+  const moved = block.map((l) => ({ ...l, order: undefined }));
+  return [...rest.slice(0, at), ...moved, ...rest.slice(at)];
 }
