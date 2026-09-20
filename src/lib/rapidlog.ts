@@ -55,21 +55,12 @@ export interface Line {
   order?: number;
 }
 
-/** A number for a freshly-placed line to sort by — monotonic even across
- *  several calls in the same millisecond, so lines created in a tight loop
- *  (rollover carrying a dozen tasks forward at once) still land in a
- *  stable, distinct order rather than tying. */
-let lastOrder = 0;
-export function nextOrder(): number {
-  lastOrder = Math.max(Date.now(), lastOrder + 1);
-  return lastOrder;
-}
-
-/** The gap a freshly-computed fallback position leaves between neighbours —
- *  small next to `nextOrder()`'s millisecond-since-epoch scale, so a page
- *  that has never been touched by a drag still sorts by its plain array
- *  order (each line `index * ORDER_GAP` apart) without ever outranking a
- *  line that actually has been placed somewhere on purpose. */
+/** The gap a freshly-computed position leaves between neighbours. Every
+ *  `order` lives on this one scale — a page nobody has dragged on sorts by
+ *  plain array index (each line `index * ORDER_GAP` apart), and a dragged
+ *  line takes a value between whichever two it landed between. Anything on
+ *  a different scale would outrank the whole page rather than slotting into
+ *  it, which is exactly what a wall-clock timestamp here used to do. */
 export const ORDER_GAP = 1000;
 
 export function isStruck(line: Pick<Line, "kind" | "struck">): boolean {
@@ -203,6 +194,17 @@ export function childRangeOf(
   return [parentIndex + 1, end];
 }
 
+/** The line at `index` together with the list gathered under it, as
+ *  `[start, end)`. This is the unit that moves: "DM Shopping" without the
+ *  three things you were going to buy is just a word, so sending it to
+ *  tomorrow or dragging it up the page takes its list along. An indented
+ *  line is its own unit — one level is all there is, so it has nothing
+ *  hanging off it. */
+export function groupRangeOf(lines: Line[], index: number): [number, number] {
+  const [, end] = childRangeOf(lines, index);
+  return [index, Math.max(end, index + 1)];
+}
+
 /** Retire a line the way `tapSignifier` retires the one you actually
  *  tapped, but forced to a given struck state rather than toggled — for
  *  cascading onto children, which didn't ask to be struck themselves. */
@@ -244,20 +246,37 @@ export function newLine(
   return { id: newId(), kind, text, indent };
 }
 
-/** Move the line at `from` to `to`, and stamp *only* that line with an
- *  `order` placing it between its new neighbours. That single stamp is
- *  what lets a drag survive a sync — see `mergeLines`. Every other line
- *  on the page is returned untouched, on purpose: giving the whole page a
+/** Move the line at `from` — with the list gathered under it — so the
+ *  group starts at `to`, and stamp *only* the lines that moved with an
+ *  `order` placing them between their new neighbours. Those stamps are
+ *  what let a drag survive a sync; see `mergeLines`. Every line that
+ *  didn't move is returned untouched, on purpose: giving the whole page a
  *  fresh position on every drag would let a reorder that only meant to
- *  move one line outrank a genuine, older, unrelated edit made to some
- *  other line on another device in the meantime. */
-export function reorderLine(lines: Line[], from: number, to: number): Line[] {
-  const target = Math.max(0, Math.min(lines.length - 1, to));
-  if (from === target || from < 0 || from >= lines.length) return lines;
+ *  move one thing outrank a genuine, older, unrelated edit made to some
+ *  other line on another device in the meantime.
+ *
+ *  Dragging an unindented line never drops it between another line and
+ *  its own list — it lands before or after that whole group instead.
+ *  Dragging an indented line has no such rule, since sliding one item up
+ *  the shopping list is the entire point of dragging it. */
+export function reorderGroup(lines: Line[], from: number, to: number): Line[] {
+  if (from < 0 || from >= lines.length) return lines;
 
-  const next = [...lines];
-  const [moved] = next.splice(from, 1);
-  next.splice(target, 0, moved);
+  const [start, end] = groupRangeOf(lines, from);
+  const block = lines.slice(start, end);
+  const rest = [...lines.slice(0, start), ...lines.slice(end)];
+
+  let at = Math.max(0, Math.min(rest.length, to));
+  if ((lines[from].indent ?? 0) === 0) {
+    // step off any child it would have landed on, the way it came
+    const down = at > start;
+    while (at > 0 && at < rest.length && (rest[at].indent ?? 0) === 1) {
+      at += down ? 1 : -1;
+    }
+  }
+  if (at === start) return lines;
+
+  const next = [...rest.slice(0, at), ...block, ...rest.slice(at)];
 
   // neighbours' fallback keys use their position in the array as it was
   // *before* this move — the same array every other device still has, so
@@ -268,17 +287,23 @@ export function reorderLine(lines: Line[], from: number, to: number): Line[] {
     line
       ? (line.order ?? (origIndex.get(line.id) ?? 0) * ORDER_GAP)
       : undefined;
-  const before = keyOf(next[target - 1]);
-  const after = keyOf(next[target + 1]);
-  const order =
+  const before = keyOf(next[at - 1]);
+  const after = keyOf(next[at + block.length]);
+  // the block has to fit *between* the two, so the gap is shared out
+  // rather than each line taking the same step
+  const orders =
     before !== undefined && after !== undefined
-      ? (before + after) / 2
+      ? block.map(
+          (_, i) => before + ((after - before) / (block.length + 1)) * (i + 1),
+        )
       : before !== undefined
-        ? before + ORDER_GAP
+        ? block.map((_, i) => before + ORDER_GAP * (i + 1))
         : after !== undefined
-          ? after - ORDER_GAP
-          : nextOrder();
+          ? block.map((_, i) => after - ORDER_GAP * (block.length - i))
+          : block.map((_, i) => i * ORDER_GAP);
 
-  next[target] = { ...moved, order };
+  for (let i = 0; i < block.length; i++) {
+    next[at + i] = { ...block[i], order: orders[i] };
+  }
   return next;
 }

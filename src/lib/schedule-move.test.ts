@@ -35,6 +35,45 @@ describe("filing a task for a later day", () => {
     expect(on(target)[0].order).toBeUndefined();
   });
 
+  it("takes the list under it along, rather than orphaning it", async () => {
+    // "i wanna be able to move DM shopping while moving all of its sub
+    // tasks with it too not one by one" — the heading used to go on its
+    // own, leaving its items behind indented under nothing
+    const target = addDays(T0, 2);
+    const parent = newLine("task", "DM Shopping");
+    adopt(NB, T0, [
+      newLine("task", "Breakfast"),
+      parent,
+      newLine("note", "Pads", 1),
+      newLine("note", "Hangers", 1),
+      newLine("task", "Work"),
+    ]);
+
+    await moveLineTo(NB, T0, parent, target);
+    await flushAsync();
+
+    expect(textsOn(target)).toEqual(["DM Shopping", "Pads", "Hangers"]);
+    expect(textsOn(T0)).toEqual(["Breakfast", "Work"]);
+    // and the items land still indented under their heading
+    expect(on(target).map((l) => l.indent ?? 0)).toEqual([0, 1, 1]);
+  });
+
+  it("moves one item out of a list without dragging the rest of it along", async () => {
+    const target = addDays(T0, 2);
+    const item = newLine("note", "Pads", 1);
+    adopt(NB, T0, [
+      newLine("task", "DM Shopping"),
+      item,
+      newLine("note", "Hangers", 1),
+    ]);
+
+    await moveLineTo(NB, T0, item, target);
+    await flushAsync();
+
+    expect(textsOn(target)).toEqual(["Pads"]);
+    expect(textsOn(T0)).toEqual(["DM Shopping", "Hangers"]);
+  });
+
   it("takes it off the day you wrote it — that is the point of sending it on", async () => {
     const target = addDays(T0, 3);
     const line = newLine("task", "book the ferry");

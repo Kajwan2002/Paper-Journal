@@ -9,11 +9,12 @@ import {
 import {
   cycleKind,
   glyphFor,
+  groupRangeOf,
   isStruck,
   isTaskKind,
   newLine,
   parseLine,
-  reorderLine,
+  reorderGroup,
   type Line,
 } from "@/lib/rapidlog";
 import { parseDue } from "@/lib/nldate";
@@ -283,6 +284,15 @@ export function RuledLines({
   // --- drag to reorder ----------------------------------------------
   const [drag, setDrag] = useState<{ id: string; dy: number } | null>(null);
   const anchor = useRef({ y: 0, rowH: 33 });
+  // the drag also lives in a ref, read synchronously by the next pointer
+  // event. It used to be read inside a `setDrag` updater, which meant the
+  // page write that a crossed row triggers happened during React's render
+  // phase — warned about, and run twice over in StrictMode.
+  const dragging = useRef<{ id: string; dy: number } | null>(null);
+  const moveDrag = (next: { id: string; dy: number } | null) => {
+    dragging.current = next;
+    setDrag(next);
+  };
 
   const onGripDown = (e: ReactPointerEvent, id: string) => {
     e.preventDefault();
@@ -293,40 +303,60 @@ export function RuledLines({
       y: e.clientY,
       rowH: rowEl?.getBoundingClientRect().height ?? 33,
     };
-    setDrag({ id, dy: 0 });
+    moveDrag({ id, dy: 0 });
   };
 
   const onGripMove = (e: ReactPointerEvent) => {
-    setDrag((d) => {
-      if (!d) return d;
-      const list = rowsRef.current;
-      // the grip only exists on visible rows, and each row-height step of
-      // drag distance corresponds to a visible neighbour, not necessarily
-      // the next slot in the full (someday-including) array
-      const shown = list.filter((l) => !l.someday);
-      const cur = shown.findIndex((l) => l.id === d.id);
-      if (cur < 0) return d;
-      const raw = e.clientY - anchor.current.y;
-      const steps = Math.round(raw / anchor.current.rowH);
-      const target = Math.max(0, Math.min(shown.length - 1, cur + steps));
-      if (target !== cur) {
-        const from = list.findIndex((l) => l.id === d.id);
-        const to = list.findIndex((l) => l.id === shown[target].id);
-        commit(reorderLine(list, from, to));
+    const d = dragging.current;
+    if (!d) return;
+    const list = rowsRef.current;
+    // the grip only exists on visible rows, and each row-height step of
+    // drag distance corresponds to a visible neighbour, not necessarily
+    // the next slot in the full (someday-including) array
+    const shown = list.filter((l) => !l.someday);
+    const cur = shown.findIndex((l) => l.id === d.id);
+    if (cur < 0) return;
+    const raw = e.clientY - anchor.current.y;
+    const steps = Math.round(raw / anchor.current.rowH);
+    const target = Math.max(0, Math.min(shown.length - 1, cur + steps));
+    if (target !== cur) {
+      const from = list.findIndex((l) => l.id === d.id);
+      const to = list.findIndex((l) => l.id === shown[target].id);
+      const moved = reorderGroup(list, from, to);
+      if (moved !== list) {
+        commit(moved);
+        // re-anchor by the rows the pointer actually travelled, not by
+        // where the block came to rest. A group refusing to split another
+        // one can land further than it was asked to, and charging the
+        // pointer for that difference leaves a `dy` that immediately asks
+        // to move it back — the two fight each other for the rest of the
+        // drag and it ends up where it started.
         anchor.current.y += (target - cur) * anchor.current.rowH;
-        return { id: d.id, dy: e.clientY - anchor.current.y };
+        moveDrag({ id: d.id, dy: e.clientY - anchor.current.y });
+        return;
       }
-      return { id: d.id, dy: raw };
-    });
+    }
+    moveDrag({ id: d.id, dy: raw });
   };
 
   const onGripUp = (e: ReactPointerEvent) => {
     e.currentTarget.releasePointerCapture?.(e.pointerId);
-    setDrag(null);
+    moveDrag(null);
   };
 
   const pageEmpty = visible.length === 1 && visible[0].text === "";
   const today = todayKey();
+
+  // a line being dragged carries its list under it, so the whole group has
+  // to travel under the finger rather than the heading sliding out of it
+  const dragGroup = new Set<string>();
+  if (drag) {
+    const at = visible.findIndex((l) => l.id === drag.id);
+    if (at >= 0) {
+      const [start, end] = groupRangeOf(visible, at);
+      for (const l of visible.slice(start, end)) dragGroup.add(l.id);
+    }
+  }
 
   return (
     <div className="ruled">
@@ -337,13 +367,13 @@ export function RuledLines({
           <div
             key={line.id}
             className={`ruled__row ruled__row--${line.kind} ${
-              drag?.id === line.id ? "ruled__row--drag" : ""
+              dragGroup.has(line.id) ? "ruled__row--drag" : ""
             } ${menu?.id === line.id ? "ruled__row--menu" : ""}`}
             data-indent={line.indent ?? 0}
             data-rolls={Math.min(line.rolls ?? 0, NAG_CAP)}
             data-struck={struck ? "1" : "0"}
             style={
-              drag?.id === line.id
+              drag && dragGroup.has(line.id)
                 ? { transform: `translateY(${drag.dy}px)`, zIndex: 5 }
                 : undefined
             }

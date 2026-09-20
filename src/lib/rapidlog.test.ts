@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   childRangeOf,
   cycleKind,
+  groupRangeOf,
   isDue,
   isOpenTask,
   isStruck,
   newLine,
+  ORDER_GAP,
   parseLine,
   QUICK_KINDS,
+  reorderGroup,
   tapSignifier,
   toggleWithChildren,
   type Line,
@@ -113,6 +116,94 @@ describe("childRangeOf", () => {
   it("stops at the end of the list", () => {
     const lines = [task({ text: "Rewe Shopping" }), child("Cola")];
     expect(childRangeOf(lines, 0)).toEqual([1, 2]);
+  });
+});
+
+describe("groupRangeOf", () => {
+  it("is the heading and its list together — the thing that moves as one", () => {
+    const lines = [
+      task({ text: "Rewe Shopping" }),
+      child("Cola"),
+      child("Grill Peppers"),
+      task({ text: "Ausländer Email" }),
+    ];
+    expect(groupRangeOf(lines, 0)).toEqual([0, 3]);
+    expect(groupRangeOf(lines, 3)).toEqual([3, 4]);
+  });
+
+  it("is just the one line for an indented one, which carries nothing", () => {
+    const lines = [task({ text: "Rewe Shopping" }), child("Cola")];
+    expect(groupRangeOf(lines, 1)).toEqual([1, 2]);
+  });
+});
+
+describe("reorderGroup", () => {
+  // "DM Shopping" with its list, then two plain tasks
+  const page = () => [
+    task({ text: "DM Shopping" }),
+    child("Pads"),
+    child("Hangers"),
+    task({ text: "Breakfast" }),
+    task({ text: "Work" }),
+  ];
+  const texts = (lines: Line[]) => lines.map((l) => l.text);
+
+  it("takes the list under a heading with it", () => {
+    // the ask: "i wanna be able to move DM shopping while moving all of
+    // its sub tasks with it too not one by one"
+    expect(texts(reorderGroup(page(), 0, 3))).toEqual([
+      "Breakfast",
+      "Work",
+      "DM Shopping",
+      "Pads",
+      "Hangers",
+    ]);
+  });
+
+  it("never lands between a heading and its own list", () => {
+    // dragging "Work" onto row 1 aims straight into the shopping list
+    expect(texts(reorderGroup(page(), 4, 1))).toEqual([
+      "Work",
+      "DM Shopping",
+      "Pads",
+      "Hangers",
+      "Breakfast",
+    ]);
+  });
+
+  it("still lets one item move inside the list it belongs to", () => {
+    // the rule above is for headings — sliding "Hangers" above "Pads" is
+    // the whole reason to drag an indented line at all
+    expect(texts(reorderGroup(page(), 2, 1))).toEqual([
+      "DM Shopping",
+      "Hangers",
+      "Pads",
+      "Breakfast",
+      "Work",
+    ]);
+  });
+
+  it("orders the moved block between its new neighbours, in its own order", () => {
+    const moved = reorderGroup(page(), 0, 3);
+    const orders = moved.slice(2).map((l) => l.order!);
+    expect(orders.every((o) => typeof o === "number")).toBe(true);
+    // strictly increasing, so the list keeps its sequence
+    expect([...orders].sort((a, b) => a - b)).toEqual(orders);
+    // and all of it sorts after "Work", which it was dragged below — an
+    // untouched line's key is its old array index on the same scale
+    expect(Math.min(...orders)).toBeGreaterThan(4 * ORDER_GAP);
+  });
+
+  it("leaves the lines that didn't move completely untouched", () => {
+    const before = page();
+    const moved = reorderGroup(before, 0, 3);
+    expect(moved[0]).toBe(before[3]); // same object, not a copy
+    expect(moved[1]).toBe(before[4]);
+  });
+
+  it("is a no-op when the group doesn't actually go anywhere", () => {
+    const before = page();
+    expect(reorderGroup(before, 0, 0)).toBe(before);
   });
 });
 

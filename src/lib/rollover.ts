@@ -71,7 +71,11 @@ async function run(notebookId: string, today: DayKey): Promise<boolean> {
   for (const page of past) {
     const base = linesFor(notebookId, page);
     let changed = false;
-    const next = base.map((line) => {
+    // a line already carried along with its parent's group, so its own turn
+    // in the loop doesn't send a second copy
+    const withParent = new Set<string>();
+    const next = base.map((line, i) => {
+      if (withParent.has(line.id)) return line;
       if (!line.carriedTo && isDue(line, today)) {
         carried.push({
           ...line,
@@ -83,16 +87,21 @@ async function run(notebookId: string, today: DayKey): Promise<boolean> {
           // landing on today's page — the position it held on the page
           // it's carried from has nothing to do with where it lands here,
           // so it drops out of the explicit-order scheme entirely rather
-          // than getting a fresh stamp: `order` on a real drag is deliberately
-          // scaled to sit among that page's own skeleton (array-index)
-          // fallbacks, but `nextOrder()`'s timestamp scale is enormous next
-          // to those — stamping every rollover with one made a page's carried
-          // tasks permanently outrank anything freshly typed after them, so a
-          // brand new line always sorted above every migrated one. Falling
-          // back to plain array position (it's appended to the end) is both
-          // simpler and correct.
+          // than getting a fresh stamp: `order` on a real drag is
+          // deliberately scaled to sit among that page's own array-index
+          // fallbacks, and a wall-clock number is enormous next to those —
+          // stamping every rollover with one made a page's carried tasks
+          // permanently outrank anything freshly typed after them.
           order: undefined,
         });
+        // its list comes with it: a shopping list left behind on the page
+        // its heading just moved off is indented under nothing. The copy
+        // stays on the old page too, under the `›` breadcrumb, so leafing
+        // back still shows what that day actually held.
+        for (const child of base.slice(...childRangeOf(base, i))) {
+          carried.push({ ...child, order: undefined });
+          withParent.add(child.id);
+        }
         changed = true;
         return { ...line, kind: "migrated" as const, carriedTo: today };
       }
@@ -109,8 +118,15 @@ async function run(notebookId: string, today: DayKey): Promise<boolean> {
     (await db.pages.get(todayId))?.lines ??
     []
   ).filter((l) => l.text.trim().length > 0);
+  // `seen` grows as it goes, so a line two past pages both hold a copy of
+  // arrives once rather than twice
   const seen = new Set(todayBase.map((l) => l.id));
-  const fresh = carried.filter((c) => !seen.has(c.id));
+  const fresh: Line[] = [];
+  for (const c of carried) {
+    if (seen.has(c.id)) continue;
+    seen.add(c.id);
+    fresh.push(c);
+  }
   if (fresh.length === 0 && rewrites.size === 0) return true;
 
   const merged = [...todayBase, ...fresh];

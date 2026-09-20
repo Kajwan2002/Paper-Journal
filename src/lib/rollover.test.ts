@@ -57,6 +57,36 @@ describe("rolloverToToday", () => {
     expect(linesOn(today)[0].order).toBeUndefined();
   });
 
+  it("carries the list under a task along with it", async () => {
+    // a heading that arrives on today without the three things you meant
+    // to buy is just a word; the old page keeps its copy under the `›`
+    const yesterday = addDays(today, -1);
+    await put(yesterday, [
+      newLine("task", "DM Shopping"),
+      newLine("note", "Pads", 1),
+      newLine("note", "Hangers", 1),
+    ]);
+
+    await rolloverToToday(NB);
+
+    expect(texts(today)).toEqual(["DM Shopping", "Pads", "Hangers"]);
+    expect(linesOn(today).map((l) => l.indent ?? 0)).toEqual([0, 1, 1]);
+    expect(texts(yesterday)).toEqual(["DM Shopping", "Pads", "Hangers"]);
+  });
+
+  it("doesn't send a second copy of an item that is itself a task", async () => {
+    // an indented task would otherwise be carried twice: once with its
+    // heading's group, and again on its own turn
+    await put(addDays(today, -1), [
+      newLine("task", "DM Shopping"),
+      newLine("task", "Pads", 1),
+    ]);
+
+    await rolloverToToday(NB);
+
+    expect(texts(today)).toEqual(["DM Shopping", "Pads"]);
+  });
+
   it("is idempotent — running it twice carries nothing extra", async () => {
     await put(addDays(today, -1), [newLine("task", "post the form")]);
     await rolloverToToday(NB);

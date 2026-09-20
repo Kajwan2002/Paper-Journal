@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { living, mergeLines, stampEdits, withTombstones } from "@/lib/merge";
-import { newLine, reorderLine, type Line } from "@/lib/rapidlog";
+import { newLine, reorderGroup, type Line } from "@/lib/rapidlog";
 
 const at = (line: Line, editedAt: number): Line => ({ ...line, editedAt });
 
@@ -71,10 +71,10 @@ describe("mergeLines", () => {
     // regression: "the order of things doesn't get synced if i move a task
     // up or down". mine is a device that never touched this page; theirs
     // dragged "c" up above "a" — simulated the way it actually happens,
-    // reorderLine followed by the same stampEdits a real write goes through.
+    // reorderGroup followed by the same stampEdits a real write goes through.
     const [a, b, c] = ["a", "b", "c"].map((t) => newLine("task", t));
     const mine = [a, b, c];
-    const theirs = stampEdits(reorderLine(mine, 2, 0), mine, 100);
+    const theirs = stampEdits(reorderGroup(mine, 2, 0), mine, 100);
     expect(mergeLines(mine, theirs).map((l) => l.text)).toEqual([
       "c",
       "a",
@@ -88,12 +88,27 @@ describe("mergeLines", () => {
     ]);
   });
 
+  it("carries a whole dragged group across a sync, still in one piece", () => {
+    const shopping = newLine("task", "DM Shopping");
+    const pads = newLine("note", "Pads", 1);
+    const hangers = newLine("note", "Hangers", 1);
+    const breakfast = newLine("task", "Breakfast");
+    const work = newLine("task", "Work");
+    const mine = [shopping, pads, hangers, breakfast, work];
+    // the other device drags the shopping list down below "Work"
+    const theirs = stampEdits(reorderGroup(mine, 0, 3), mine, 100);
+    const landed = ["Breakfast", "Work", "DM Shopping", "Pads", "Hangers"];
+
+    expect(mergeLines(mine, theirs).map((l) => l.text)).toEqual(landed);
+    expect(mergeLines(theirs, mine).map((l) => l.text)).toEqual(landed);
+  });
+
   it("a plain edit elsewhere on the page survives a concurrent reorder", () => {
     // moving "c" must not touch "b" at all — an untouched line keeps
     // whatever edit it was carrying, reorder or not
     const [a, b, c] = ["a", "b", "c"].map((t) => newLine("task", t));
     const mine = [a, { ...b, text: "b edited", editedAt: 50 }, c];
-    const theirs = stampEdits(reorderLine([a, b, c], 2, 0), [a, b, c], 10);
+    const theirs = stampEdits(reorderGroup([a, b, c], 2, 0), [a, b, c], 10);
     const merged = mergeLines(mine, theirs);
     expect(merged.find((l) => l.id === b.id)?.text).toBe("b edited");
   });
