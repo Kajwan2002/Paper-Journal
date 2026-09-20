@@ -111,14 +111,22 @@ export async function focusRows(
   const lines = note?.lines ?? [];
   if (lines.length === 0) return [];
 
-  const finished: string[][] = [];
+  // Keyed by line id, so a task counts once however many mornings it was
+  // carried across. A task and every `›` breadcrumb it left behind share a
+  // single id, and ticking it off settles the whole chain at once — so a
+  // task put off until Thursday used to land in here four times over and
+  // read as four separate things done. Later days overwrite earlier ones,
+  // which keeps whichever text the live copy ended up with.
+  const finished = new Map<string, string[]>();
   for (const day of weekDays(weekStart)) {
     const stored =
       getCached(pageId(notebookId, day)) ??
       (await getPage(notebookId, day))?.lines ??
       [];
     for (const line of stored) {
-      if (isStruck(line) && line.text.trim()) finished.push(wordsOf(line.text));
+      if (isStruck(line) && line.text.trim()) {
+        finished.set(line.id, wordsOf(line.text));
+      }
     }
   }
 
@@ -130,8 +138,9 @@ export async function focusRows(
     const count =
       keywords.length === 0
         ? 0
-        : finished.filter((words) => keywords.some((k) => words.includes(k)))
-            .length;
+        : [...finished.values()].filter((words) =>
+            keywords.some((k) => words.includes(k)),
+          ).length;
     return { ...line, label, target, count };
   });
 }

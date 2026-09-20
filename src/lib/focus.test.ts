@@ -102,6 +102,39 @@ describe("focusRows", () => {
     expect(rows[0].count).toBe(1);
   });
 
+  it("counts a task put off for days as done once, not once per morning", async () => {
+    // regression: "when I actually eventually do it, it registers as three
+    // or four times". A carried task leaves a `›` breadcrumb on every page
+    // it passed through, all sharing one line id, and ticking it off
+    // strikes the whole chain — so the week saw four struck "Gym" lines
+    await saveFocusLines(NB, MON, [newFocusLine("Gym x3")]);
+    const gym = newLine("task", "Gym");
+    // Monday through Wednesday are breadcrumbs, Thursday is the live copy
+    for (let i = 0; i < 3; i++) {
+      await put(addDays(MON, i), [
+        {
+          ...gym,
+          kind: "migrated",
+          carriedTo: addDays(MON, i + 1),
+          struck: true,
+        },
+      ]);
+    }
+    await put(addDays(MON, 3), [{ ...gym, kind: "migrated", struck: true }]);
+
+    expect((await focusRows(NB, THU))[0].count).toBe(1);
+  });
+
+  it("still counts two separate times you did the same thing", async () => {
+    // the dedupe is by line id, not by text — writing "Gym" fresh on two
+    // different days is genuinely two, and has to stay two
+    await saveFocusLines(NB, MON, [newFocusLine("Gym x3")]);
+    await put(MON, [{ ...newLine("task", "Gym"), struck: true }]);
+    await put(addDays(MON, 2), [{ ...newLine("task", "Gym"), struck: true }]);
+
+    expect((await focusRows(NB, THU))[0].count).toBe(2);
+  });
+
   it("never counts against a different week", async () => {
     await saveFocusLines(NB, MON, [newFocusLine("Gym x3")]);
     await put(addDays(MON, -1), [{ ...newLine("task", "Gym"), struck: true }]);
