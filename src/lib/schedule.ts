@@ -1,7 +1,7 @@
 import { db, getPage, pageId } from "@/lib/db";
 import { flushAsync, getCached, prime, writeLines } from "@/lib/pageStore";
 import type { DayKey } from "@/lib/date";
-import { isOpenTask, type Line } from "@/lib/rapidlog";
+import { childRangeOf, isOpenTask, type Line } from "@/lib/rapidlog";
 
 /** Filing something for a later day *moves* it there.
  *
@@ -43,30 +43,45 @@ export async function moveLineTo(
   await flushAsync();
   await prime(notebookId, to);
 
-  const live: Line = {
-    ...line,
+  const relocate = (l: Line): Line => ({
+    ...l,
     carriedTo: undefined,
     due: undefined,
     someday: undefined,
     rolls: 0,
-    origin: line.origin ?? from,
+    origin: l.origin ?? from,
     // landing fresh on a different page — whatever position it held on
     // the page it came from has nothing to do with where it belongs here.
-    // Clearing it rather than stamping a fresh `nextOrder()` matters: that
-    // timestamp scale is enormous next to the array-index scale a plain
-    // page sorts by, so every moved line would permanently outrank
-    // anything typed after it. Falling back to plain array position (it's
-    // appended to the end of the target day) is both simpler and correct.
+    // Clearing it rather than stamping a fresh wall-clock number matters:
+    // that scale is enormous next to the array-index scale a plain page
+    // sorts by, so every moved line would permanently outrank anything
+    // typed after it. Falling back to plain array position (the block is
+    // appended to the end of the target day) is simpler and correct.
     order: undefined,
-  };
+  });
+
+  // the list gathered under it goes too — "DM Shopping" on its own, with
+  // the three things you meant to buy left behind on yesterday's page
+  // indented under nothing, is not what "move this to tomorrow" meant
+  const here = getCached(pageId(notebookId, from)) ?? [];
+  const at = here.findIndex((l) => l.id === line.id);
+  const children = at < 0 ? [] : here.slice(...childRangeOf(here, at));
+  const block = [relocate(line), ...children.map(relocate)];
+  const moving = new Set(block.map((l) => l.id));
 
   const target = getCached(pageId(notebookId, to)) ?? [];
-  const already = target.some((l) => l.id === line.id);
-  const nextTarget = already
-    ? target.map((l) => (l.id === line.id ? live : l))
-    : [...target.filter((l) => l.text.trim().length > 0), live];
+  const keep = (l: Line) => l.text.trim().length > 0 && !moving.has(l.id);
+  // re-filing something already on the target day leaves it where it sits
+  const wasAt = target.findIndex((l) => l.id === line.id);
+  const rest = target.filter(keep);
+  const insertAt =
+    wasAt < 0 ? rest.length : target.slice(0, wasAt).filter(keep).length;
 
-  writeLines(notebookId, to, nextTarget);
+  writeLines(notebookId, to, [
+    ...rest.slice(0, insertAt),
+    ...block,
+    ...rest.slice(insertAt),
+  ]);
 
   // and off the day you wrote it — you sent it forward to stop seeing it.
   // Through writeLines, not a raw adopt+savePage: writeLines is what turns
@@ -75,9 +90,11 @@ export async function moveLineTo(
   // hasn't seen the move yet, or even this same device's own last push —
   // had no way to tell "removed on purpose" from "never received", and put
   // the task right back a few seconds later.
-  const here = getCached(pageId(notebookId, from)) ?? [];
-  const nextHere = here.filter((l) => l.id !== line.id);
-  writeLines(notebookId, from, nextHere);
+  writeLines(
+    notebookId,
+    from,
+    here.filter((l) => !moving.has(l.id)),
+  );
 
   await flushAsync();
 }
