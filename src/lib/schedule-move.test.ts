@@ -76,6 +76,22 @@ describe("filing a task for a later day", () => {
     expect(textsOn(T0)).toEqual(["DM Shopping", "Hangers"]);
   });
 
+  it("moves an event too — the dentist really is Thursday now", async () => {
+    // an event can be sent to another day by hand, even though rollover
+    // never carries one: something that was going to happen and didn't
+    // simply didn't happen
+    const target = addDays(T0, 2);
+    const dentist = newLine("event", "dentist");
+    adopt(NB, T0, [newLine("task", "Breakfast"), dentist]);
+
+    await moveLineTo(NB, T0, dentist, target);
+    await flushAsync();
+
+    expect(textsOn(target)).toEqual(["dentist"]);
+    expect(on(target)[0].kind).toBe("event");
+    expect(textsOn(T0)).toEqual(["Breakfast"]);
+  });
+
   it("takes it off the day you wrote it — that is the point of sending it on", async () => {
     const target = addDays(T0, 3);
     const line = newLine("task", "book the ferry");

@@ -70,6 +70,11 @@ export function LineMenu({
   // any more, just a note that something moved on
   const isBreadcrumb = !!line.carriedTo;
   const task = isTaskKind(line) && !isBreadcrumb;
+  // An event can be moved — the dentist really is Thursday now — but it is
+  // not a commitment: no someday, no deadline, and rollover never touches
+  // it. Something that was going to happen and didn't simply didn't happen,
+  // so moving one is only ever something you did on purpose.
+  const movable = task || (line.kind === "event" && !isBreadcrumb);
 
   // phones get a bottom sheet; anything roomier gets a popover by the line
   const [sheet, setSheet] = useState(
@@ -164,7 +169,7 @@ export function LineMenu({
         />
       ) : (
         <>
-          {task ? (
+          {movable ? (
             <>
               <p className="lmenu__label">Move to</p>
               {soon.map(([label, day]) => (
@@ -187,39 +192,46 @@ export function LineMenu({
               >
                 <span>Pick a day…</span>
               </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="lmenu__item"
-                onClick={() =>
-                  onPatch((l) => ({
-                    ...l,
-                    someday: true,
-                    due: undefined,
-                    rolls: 0,
-                  }))
-                }
-              >
-                <span>Someday</span>
-                <span className="lmenu__hint">stop nagging</span>
-              </button>
-              {scheduled ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="lmenu__item"
-                  onClick={() =>
-                    onPatch((l) => ({
-                      ...l,
-                      due: undefined,
-                      someday: undefined,
-                    }))
-                  }
-                >
-                  <span>Unschedule</span>
-                </button>
+              {task ? (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="lmenu__item"
+                    onClick={() =>
+                      onPatch((l) => ({
+                        ...l,
+                        someday: true,
+                        due: undefined,
+                        rolls: 0,
+                      }))
+                    }
+                  >
+                    <span>Someday</span>
+                    <span className="lmenu__hint">stop nagging</span>
+                  </button>
+                  {scheduled ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="lmenu__item"
+                      onClick={() =>
+                        onPatch((l) => ({
+                          ...l,
+                          due: undefined,
+                          someday: undefined,
+                        }))
+                      }
+                    >
+                      <span>Unschedule</span>
+                    </button>
+                  ) : null}
+                </>
               ) : null}
-
+            </>
+          ) : null}
+          {task ? (
+            <>
               <hr className="lmenu__rule" />
               <p className="lmenu__label">Due by</p>
               {line.deadline ? (
@@ -270,10 +282,9 @@ export function LineMenu({
                   </button>
                 </>
               )}
-
-              <hr className="lmenu__rule" />
             </>
           ) : null}
+          {movable ? <hr className="lmenu__rule" /> : null}
 
           {!isBreadcrumb ? (
             <>
