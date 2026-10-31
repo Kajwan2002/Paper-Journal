@@ -42,7 +42,7 @@ function start(n: number): Page {
 describe("a merge against a stale copy", () => {
   // The bug this guards: "the sync feature still sometimes moves things
   // around randomly a few sec after adding them". A pull merges what's on
-  // this device against what the gist still holds, which is always at least
+  // this device against what the cloud still holds, which is always at least
   // one edit behind — so if that merge can reorder anything, the page
   // reshuffles itself seconds after you write on it, for no visible reason.
   it("never reshuffles the page, whatever was done to it", () => {
@@ -58,7 +58,7 @@ describe("a merge against a stale copy", () => {
       const log: string[] = [];
 
       for (let step = 0; step < 6; step++) {
-        const stale = page.lines; // what the gist still has
+        const stale = page.lines; // what the other device still has
         const now = living(page.lines);
         const op = rnd(3);
         if (op === 0 && now.length > 1) {

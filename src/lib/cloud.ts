@@ -22,11 +22,13 @@ import { useCloud, type CloudConfig, type CloudMode } from "@/state/cloud";
  *  *when* a change arrives, not who wins; there is still nothing
  *  arbitrating, and the merge is what makes both devices agree.
  *
- *  What it buys over the gist it replaces: a change lands in about a
- *  second instead of up to ninety, because the connection stays open
+ *  A change lands in about a second, because the connection stays open
  *  rather than being polled; only the page you touched is written, so it
  *  does not slow down as the journal grows; and there is no credential to
- *  create, expire or revoke.
+ *  create, expire or revoke. The sync this replaced — a polled, encrypted
+ *  gist in the reader's own GitHub account — managed none of those three,
+ *  and the last one is what made it untrustworthy rather than merely
+ *  slow. It is gone; `git log` has it if it is ever wanted back.
  *
  *  The SDK is large, so it is a lazy import: it is parsed and run only
  *  once sync is actually turned on, and it stays out of the main bundle.
