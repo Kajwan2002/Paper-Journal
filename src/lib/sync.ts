@@ -1,4 +1,5 @@
 import { db, type Notebook, type Page, type WeekNote } from "@/lib/db";
+import { reconcileNotebooks } from "@/lib/shelf";
 import { flushAsync, subscribeJournal } from "@/lib/pageStore";
 import { mergeLines } from "@/lib/merge";
 import { decrypt, encrypt, importKey } from "@/lib/crypto";
@@ -120,40 +121,6 @@ async function absorb(remote: Backup): Promise<boolean> {
   return changed;
 }
 
-/** Every device seeds itself a "Journal" on first run, before it has any
- *  idea another one exists — so pairing unions two empty-ish notebooks and
- *  each device carries on showing its own. Pick the one that actually has
- *  writing in it, and bin an untouched seed rather than leaving a confusing
- *  second notebook on the shelf. Nothing with a page in it is ever removed. */
-async function reconcileNotebooks(
-  currentId: string | null,
-): Promise<string | null> {
-  const notebooks = await db.notebooks.orderBy("order").toArray();
-  if (notebooks.length < 2) return null;
-
-  const counts = new Map<string, number>();
-  for (const nb of notebooks) {
-    counts.set(nb.id, await db.pages.where("notebookId").equals(nb.id).count());
-  }
-
-  const written = notebooks.filter((n) => (counts.get(n.id) ?? 0) > 0);
-  const adopt =
-    currentId && (counts.get(currentId) ?? 0) > 0
-      ? null
-      : (written[0]?.id ?? null);
-
-  // an empty seed is only ever in the way once a written notebook exists
-  if (written.length > 0) {
-    for (const nb of notebooks) {
-      if ((counts.get(nb.id) ?? 0) > 0) continue;
-      if (nb.id === (adopt ?? currentId)) continue;
-      await db.notebooks.delete(nb.id);
-    }
-  }
-
-  return adopt;
-}
-
 /** One full pass. Safe to call whenever; overlapping calls share the run
  *  rather than starting a second one, which is what actually protects
  *  against a burst — several near-simultaneous triggers (an edit, then
@@ -205,7 +172,7 @@ export function syncNow(): Promise<void> {
 
       setSynced(Date.now());
       if (pulledChanged) {
-        const adopt = await reconcileNotebooks(
+        const { adopt } = await reconcileNotebooks(
           useSync.getState().currentNotebookId,
         );
         window.dispatchEvent(

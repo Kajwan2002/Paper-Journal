@@ -25,12 +25,15 @@ function ago(at: number): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-/** Setting up sync, in as few steps as the thing allows.
+/** The older sync, over a private gist.
  *
- *  First device: paste a GitHub token. Second device: paste the sync code the
- *  first one shows you. That's it — no accounts to make, no server to run,
- *  nothing to pay, because it rides on a GitHub account you already have. */
-export function Sync() {
+ *  Superseded by `Cloud`, which needs no token and lands in a second rather
+ *  than up to ninety. This is kept, rather than deleted, for the devices
+ *  already paired through it: pulling it out from under a working journal
+ *  would be the one way to actually lose something. `legacy` hides the
+ *  setup path — there is no reason to start a *new* journal on it — while
+ *  leaving a journal already on it fully usable until it is disconnected. */
+export function Sync({ legacy = false }: { legacy?: boolean }) {
   const config = useSync((s) => s.config);
   const phase = useSync((s) => s.phase);
   const error = useSync((s) => s.error);
@@ -121,7 +124,16 @@ export function Sync() {
   if (config) {
     return (
       <fieldset className="set__group">
-        <legend className="set__label">Sync</legend>
+        <legend className="set__label">
+          {legacy ? "Sync · the old GitHub one" : "Sync"}
+        </legend>
+        {legacy ? (
+          <p className="set__note">
+            Still running alongside the new one. Once you've seen the new sync
+            working on both devices, disconnect this — it's doing the same job
+            more slowly.
+          </p>
+        ) : null}
         <p className="sync__state" role="status">
           <span
             className={`sync__dot sync__dot--${phase}`}
@@ -248,6 +260,8 @@ export function Sync() {
       </fieldset>
     );
   }
+
+  if (legacy) return null;
 
   return (
     <fieldset className="set__group">

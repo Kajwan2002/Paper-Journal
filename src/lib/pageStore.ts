@@ -16,17 +16,22 @@ const revisions = new Map<string, number>();
 /** tombstones for each page, held apart from the living lines the UI sees */
 const buried = new Map<string, Line[]>();
 
-const journalListeners = new Set<() => void>();
+/** Told which page changed, where that is known. Sync uses it to write up
+ *  only the page you touched instead of re-reading the whole journal on
+ *  every keystroke; the open-loops ribbon ignores it and just recounts. */
+type JournalListener = (key?: string) => void;
+
+const journalListeners = new Set<JournalListener>();
 
 function emit(key: string): void {
   listeners.get(key)?.forEach((fn) => fn());
-  journalListeners.forEach((fn) => fn());
+  journalListeners.forEach((fn) => fn(key));
 }
 
 /** Fires on any change to any page. The open-loops ribbon uses it so its
  *  count stays honest the moment something is ticked off, rather than going
  *  stale until an overlay happens to close. */
-export function subscribeJournal(fn: () => void): () => void {
+export function subscribeJournal(fn: JournalListener): () => void {
   journalListeners.add(fn);
   return () => {
     journalListeners.delete(fn);
@@ -34,7 +39,9 @@ export function subscribeJournal(fn: () => void): () => void {
 }
 
 /** Tell everything watching the journal that something changed, for a write
- *  that doesn't go through a page's own cache — a week's focus note, say. */
+ *  that doesn't go through a page's own cache — a week's focus note, say.
+ *  No key, because there isn't one: a listener that narrows by page has to
+ *  fall back to looking at everything. */
 export function notifyJournal(): void {
   journalListeners.forEach((fn) => fn());
 }
