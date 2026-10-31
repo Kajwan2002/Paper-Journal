@@ -2,20 +2,19 @@
 
 Two devices, one journal, kept the same without anyone pressing anything.
 
-There are two sync transports in the tree. The newer one, over Firestore
-(`src/lib/cloud.ts`), is the one to use. The older one, over a private
-GitHub gist (`src/lib/sync.ts`), is kept only so that a device already
-paired through it keeps working; it hides its own setup once the new one is
-configured, and can be deleted once nothing is on it.
+Sync lives in `src/lib/cloud.ts`, over Firestore.
 
-## Why it was replaced
+## What was here before
 
-The gist sync worked, but it was polled rather than pushed, so a change took
-up to ninety seconds to appear; it rewrote the whole journal on every pass,
-so it got slower as the journal grew; and it needed a GitHub token, which
-has to be created, pasted, and recreated whenever it expires or is
-regenerated for something else. That last part was the real problem — a
-sync you have to set up again is a sync you stop trusting.
+A polled, AES-encrypted file in a private GitHub gist. It worked, but a
+change took up to ninety seconds to appear; it rewrote the whole journal on
+every pass, so it got slower as the journal grew; and it needed a GitHub
+token, which had to be created, pasted, and recreated whenever it expired
+or was regenerated for something else. That last part was the real problem
+— a sync you have to set up again is a sync you stop trusting.
+
+It was removed once Firestore was proven on both devices. `git log` has it
+if it is ever wanted back.
 
 Firestore holds an open connection, so a change lands in about a second;
 only the page you touched is written; and a pairing code never expires.
@@ -69,9 +68,15 @@ what keep a journal private.
 5. Publish the rules in `firestore.rules` (console → Firestore → Rules, or
    `npx firebase deploy --only firestore:rules`).
 
-Until step 4 is done, `cloudAvailable()` is false and the app behaves
-exactly as it did before: local-first, with the gist sync still available.
-Nothing about the notebook depends on any of this being set.
+`cloudAvailable()` is false until step 4 is done, and the app is simply
+local-first without it: the sync section hides itself and nothing else about
+the notebook changes. That is also what a fork of this repo gets until it
+points `firebase-config.ts` at a project of its own.
+
+Google sign-in additionally needs the site's domain under Authentication →
+Settings → Authorized domains. The pairing code does not — anonymous
+sign-in is not domain-scoped — which is one more reason it is the path
+offered first.
 
 ## Testing it
 

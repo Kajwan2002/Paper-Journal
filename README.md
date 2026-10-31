@@ -67,34 +67,46 @@ npm run fonts        # re-download the self-hosted font subsets
 - **Backups that are yours.** Export the whole journal to JSON (round‑trips
   exactly) or Markdown (for reading elsewhere), and import to merge. Importing
   the same file twice is a no‑op; importing a phone's export onto a laptop
-  unions the two. Until sync exists this is the only thing between a year of
-  journalling and a cleared cache, so it lives in the notebook settings, not in
-  a debug menu.
+  unions the two. Sync covers the everyday case, but a backup is the thing
+  between a year of journalling and a cleared cache on every device at once,
+  so it lives in the notebook settings, not in a debug menu.
 - **Works offline.** A service worker precaches the shell, and the three type
   families are self‑hosted — no request leaves the device to render a page.
-- **Sync between your own devices.** Through a private gist in your own GitHub
-  account: free, no new account, no server to run, no usage tier to outgrow.
-  Set up one device with a GitHub token, then paste the sync code it gives you
-  into the next one. The journal is encrypted on the device with AES‑GCM before
-  it leaves, so GitHub only ever holds ciphertext.
+- **Sync between your own devices.** Over Firestore, on the free tier. Turn it
+  on once and the first device hands you a pairing code; type that into the
+  second device and they stay the same from then on. A change lands in about a
+  second, in the background, with nothing to press. The code never expires and
+  is never revoked, which is the whole point — the sync it replaced needed a
+  GitHub token that had to be made again every time it lapsed, and a sync you
+  have to set up again is one you stop trusting.
 
 ## How sync resolves a clash
 
 Two devices editing at once resolve per line, not per page. Every line carries
-its own id and the time it last changed, so:
+its own id, the time its text last changed, and — separately — the time it was
+last moved, so:
 
 - a line only one device has is kept
 - a line both edited resolves to whichever edit was later
 - a deletion is a tombstone with a time, so it competes on equal terms — delete
   on the phone then edit on the PC and the edit wins
+- where a line _sits_ is settled on its own clock, so editing a line on one
+  device and dragging it on the other keeps both the new words and the new
+  position
+
+Those last two are what stop the page reshuffling itself seconds after you
+write on it. Nothing arbitrates — there is no server with an opinion — so the
+merge rules are the only reason two devices agree, and they are held to that by
+500 randomised drag/edit/delete sequences in `src/lib/order.test.ts`.
 
 The consequence worth knowing: a merge can never silently drop writing. The
 worst case is a line you deleted coming back because the other device touched
-it more recently. Sync runs on open, a few seconds after you stop typing, when
-you switch away, and on a slow poll — it is a journal, not a chat.
+it more recently.
 
-Lose the sync code and the copy on GitHub is unreadable; your local journal is
-untouched. The code carries your GitHub token, so treat it like a password.
+The pairing code _is_ the key to the journal — anyone who has it can open it —
+so treat it like a password. Lose it and the copy in the cloud is simply
+unreachable; your local journal is untouched. See [`docs/SYNC.md`](docs/SYNC.md)
+for how it is wired and how to point it at your own Firebase project.
 
 ## Not built yet
 
@@ -115,8 +127,8 @@ hand‑built CSS and Canvas.
 src/
   lib/         date helpers, rapid-log grammar, Dexie schema, page store,
                rollover, natural-language dates, deadlines, backup/restore,
-               sync (gist client, encryption, pairing, per-line merge),
-               storage persistence, ids
+               sync (Firestore client, pairing codes, per-line merge),
+               shelf reconciliation, storage persistence, ids
   state/       zustand stores — session, overlays, quick-add
   components/  Desk · Book (turn logic) · Cover · DailyPage · RuledLines ·
                LineMenu · DayPicker · Sheet (dialog shell) · Search ·

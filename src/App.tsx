@@ -4,8 +4,6 @@ import { prime, reprime, subscribeJournal } from "@/lib/pageStore";
 import { openLoops, rolloverToToday } from "@/lib/rollover";
 import { settleLegacySchedules } from "@/lib/schedule";
 import { comingDue } from "@/lib/deadline";
-import { startSync, stopSync } from "@/lib/sync";
-import { useSync } from "@/state/sync";
 import {
   resumeRedirect,
   returningFromSignIn,
@@ -46,10 +44,6 @@ export function App() {
   // notebook, a notebook switch) and "the app just started" — only the
   // latter should ever snap the reader back to today or re-run rollover
   const bootedRef = useRef(false);
-
-  useEffect(() => {
-    useSync.getState().setCurrentNotebook(notebookId);
-  }, [notebookId]);
 
   const refreshShelf = useCallback(() => setAttempt((n) => n + 1), []);
   const retry = useCallback(() => {
@@ -161,16 +155,11 @@ export function App() {
     };
   }, [goToday, countLoops]);
 
-  // sync runs itself in the background once a device is paired
-  useEffect(() => {
-    startSync();
-    return stopSync;
-  }, []);
-
-  // The Firestore sync, likewise. Nothing here touches the Firebase SDK
-  // unless this device is actually paired — it is a large download, and a
-  // journal nobody syncs should not pay for it. The redirect case is the
-  // far side of a Google sign-in that had to leave the app to happen.
+  // Sync runs itself in the background once a device is paired. Nothing
+  // here touches the Firebase SDK unless this device actually is — it is a
+  // large download, and a journal nobody syncs should not pay for it. The
+  // redirect case is the far side of a Google sign-in that had to leave
+  // the app to happen.
   useEffect(() => {
     const paired = useCloud.getState().config !== null;
     if (!paired && !returningFromSignIn()) return;

@@ -81,7 +81,7 @@ export async function getWeekNote(
 /** Never actually deletes the row, even when you clear every line — a
  *  deleted row has no `updatedAt` for the sync merge to compare against, so
  *  the next pull can't tell "you cleared this on purpose" from "you never
- *  had it," and just puts the old text back from the gist. A document with
+ *  had it," and just puts the old text back. A document with
  *  an empty `lines` array and a fresh timestamp is the tombstone: it wins
  *  the merge against whatever stale, non-empty copy is still out there. One
  *  small row per week you've ever written a focus point in costs nothing to
