@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// Marginalia — who may read a journal.
+//
+// Two shapes, because there are two ways in.
+//
+//   journals/<uid>/...  a journal signed in to with Google. Only that
+//                       account can touch it; nobody else can name it.
+//
+//   journals/c<32 hex>/...  a journal paired with a code. The id *is* the
+//                       secret: 128 bits of randomness that only reaches
+//                       another device by being pasted into it. Any
+//                       signed-in device that knows one may open it,
+//                       which is what lets a second device join without
+//                       an account. Unguessable rather than owned — the
+//                       same bargain an unlisted link makes.
+//
+// Everything else is refused, including every unauthenticated request.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /journals/{journalId}/{document=**} {
+      allow read, write: if request.auth != null
+        && (journalId == request.auth.uid
+            || journalId.matches('^c[0-9a-f]{32}$'));
+    }
+  }
+}

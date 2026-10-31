@@ -22,7 +22,9 @@ import {
   storageEstimate,
 } from "@/lib/persist";
 import { Sheet } from "@/components/Sheet";
+import { Cloud } from "@/components/Cloud";
 import { Sync } from "@/components/Sync";
+import { cloudAvailable } from "@/lib/firebase-config";
 import "./settings.css";
 
 const COVERS: Array<[CoverStyle, string]> = [
@@ -187,7 +189,8 @@ export function Settings({
           </div>
         </fieldset>
 
-        <Sync />
+        {cloudAvailable() ? <Cloud /> : null}
+        <Sync legacy={cloudAvailable()} />
 
         <fieldset className="set__group">
           <legend className="set__label">Keeping it safe</legend>

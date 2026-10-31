@@ -74,3 +74,28 @@
   line-height: 1.45;
   color: var(--oxblood);
 }
+
+.sync__dot--connecting {
+  background: var(--brass);
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+.sync__dot--live {
+  background: var(--thread);
+}
+
+/* a link that is really a button: the Google fallback sits inside a
+   sentence, where a third slab of a button would read as a third choice
+   rather than the aside it is */
+.sync__link {
+  padding: 0;
+  font: inherit;
+  color: var(--oxblood);
+  background: none;
+  border: none;
+  border-bottom: 1px solid currentColor;
+  cursor: pointer;
+}
+.sync__link:disabled {
+  color: var(--ink-faint);
+  cursor: default;
+}
