@@ -52,24 +52,34 @@ export function Cloud() {
     return () => clearTimeout(t);
   }, [copied]);
 
-  const run = async (label: string, job: () => Promise<void>) => {
+  /** `fresh` marks the path that makes a brand new journal, where a refusal
+   *  cannot be a mistyped code and is worth naming as the setup step it is. */
+  const run = async (
+    label: string,
+    job: () => Promise<void>,
+    fresh = false,
+  ) => {
     setBusy(label);
     setNote(null);
     try {
       await job();
     } catch (err) {
-      setNote(explain(err));
+      setNote(explain(err, fresh));
     } finally {
       setBusy(null);
     }
   };
 
   const begin = () =>
-    void run("Turning on…", async () => {
-      connect(await joinWithCode(newPairingCode()));
-      setPane("show");
-      await startCloud();
-    });
+    void run(
+      "Turning on…",
+      async () => {
+        connect(await joinWithCode(newPairingCode()));
+        setPane("show");
+        await startCloud();
+      },
+      true,
+    );
 
   const join = () =>
     void run("Joining…", async () => {

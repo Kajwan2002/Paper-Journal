@@ -504,18 +504,38 @@ export async function disconnectCloud(): Promise<void> {
   useCloud.getState().disconnect();
 }
 
-export function explain(err: unknown): string {
+/** Firebase's own errors are written for whoever wired the project up, not
+ *  for whoever is holding the phone — "auth/api-key-not-valid" is true and
+ *  useless. Each of these is a step in the console that didn't happen, so
+ *  say which step rather than quoting the code.
+ *
+ *  `fresh` means this device made the journal rather than joining one, so a
+ *  refusal cannot be a mistyped code and must be the rules. */
+export function explain(err: unknown, fresh = false): string {
   const message = err instanceof Error ? err.message : String(err ?? "");
+  const code = /\(([a-z]+\/[a-z-]+)\)/i.exec(message)?.[1] ?? "";
+
   if (
     (typeof navigator !== "undefined" && !navigator.onLine) ||
-    /network|offline|unavailable/i.test(message)
+    /network-request-failed|offline|unavailable/i.test(message + code)
   ) {
     return "Offline — it'll catch up when you're back.";
   }
-  if (/permission|insufficient/i.test(message)) {
-    return "That journal wouldn't open — check the pairing code.";
+  if (/api-key-not-valid|invalid-api-key|app-not-authorized/i.test(code)) {
+    return "The app's connection details are wrong or incomplete — sync can't be set up from this build.";
   }
-  if (/popup|cancelled|closed/i.test(message)) {
+  if (/operation-not-allowed|admin-restricted-operation/i.test(code)) {
+    return "This journal's cloud hasn't been told to let devices in yet (anonymous sign-in is switched off).";
+  }
+  if (/unauthorized-domain/i.test(code)) {
+    return "Signing in with Google isn't allowed from this address yet. The pairing code works regardless.";
+  }
+  if (/permission|insufficient|PERMISSION_DENIED/i.test(message)) {
+    return fresh
+      ? "The cloud refused this journal — its access rules haven't been published yet."
+      : "That journal wouldn't open — check the pairing code.";
+  }
+  if (/popup-closed|popup-blocked|cancelled|user-cancelled/i.test(message)) {
     return "Sign-in was closed before it finished.";
   }
   return message || "Sync failed.";
