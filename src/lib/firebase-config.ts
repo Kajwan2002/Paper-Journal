@@ -8,12 +8,12 @@
  *  Replace the empty strings with the config from
  *  Firebase console → Project settings → Your apps → Web. */
 export const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
+  apiKey: "AIzaSyAZhFZYq2WZBYm3_0JhyUQyKl5-gB_5fek",
+  authDomain: "marginalia-753d2.firebaseapp.com",
+  projectId: "marginalia-753d2",
+  storageBucket: "marginalia-753d2.firebasestorage.app",
+  messagingSenderId: "401195836606",
+  appId: "1:401195836606:web:d1a66ca2fbcd8d460aaaef",
 };
 
 /** Running against the local emulator suite rather than a real project —
