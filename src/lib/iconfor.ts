@@ -392,17 +392,32 @@ function lookUp(word: string): IconId | undefined {
 }
 
 /**
- * Which word a manual choice should be remembered against.
+ * The words in a line that could carry a drawing, in reading order.
  *
- * The longest word that isn't furniture: in "book the padel court" that is
- * "padel", which is the word that actually makes the line what it is. The
- * app says out loud which word it picked, because a rule you can't see is
- * one you can't correct.
+ * Everything except furniture — the words that turn up in half the lines
+ * in the book and would make a useless rule. Two letters is the floor, so
+ * "dm" survives while "at" is filtered by name rather than by length.
+ */
+export function learnableWords(text: string): string[] {
+  const seen = new Set<string>();
+  return words(text).filter((w) => {
+    if (w.length < 2 || NEVER_LEARN.has(w) || seen.has(w)) return false;
+    seen.add(w);
+    return true;
+  });
+}
+
+/**
+ * Which word a manual choice defaults to.
+ *
+ * The longest one that isn't furniture: in "book the padel court" that is
+ * "padel", the word that actually makes the line what it is. It is only a
+ * default — the menu offers the rest, because the guess is wrong often
+ * enough to matter ("meet Hama at the cafe" picks "meet", which is not the
+ * word anybody meant).
  */
 export function wordToLearn(text: string): string | null {
-  const candidates = words(text).filter(
-    (w) => w.length > 2 && !NEVER_LEARN.has(w),
-  );
+  const candidates = learnableWords(text);
   if (candidates.length === 0) return null;
   return candidates.reduce((best, w) => (w.length > best.length ? w : best));
 }

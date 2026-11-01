@@ -19,7 +19,7 @@ import {
 import { DayPicker } from "@/components/DayPicker";
 import { LineIcon } from "@/components/LineIcon";
 import { ICON_IDS } from "@/lib/icons";
-import { iconFor, wordToLearn } from "@/lib/iconfor";
+import { iconFor, learnableWords, wordToLearn } from "@/lib/iconfor";
 import { teach } from "@/lib/iconmemory";
 import { useLearned } from "@/lib/useLearned";
 import "./line-menu.css";
@@ -143,9 +143,17 @@ export function LineMenu({
   // furniture in it ("finish it today") has no word worth remembering, so
   // it is offered nothing rather than a control that quietly does nothing.
   const learned = useLearned();
-  const learnWord = wordToLearn(line.text);
+  const options = learnableWords(line.text);
+  const [picked, setPicked] = useState<string | null>(null);
+  // the line can be edited out from under an open menu; a word that is no
+  // longer in it can't be taught, so fall back rather than teach a ghost
+  const learnWord =
+    picked && options.includes(picked) ? picked : wordToLearn(line.text);
   const teachable = learnWord !== null;
-  const drawn = iconFor(line.text, learned);
+  // what that *word* draws today, which is not always what the line draws:
+  // once you choose a different word, the grid should tick what that word
+  // already means, or you can't see you are about to overwrite it
+  const drawn = learnWord ? iconFor(learnWord, learned) : null;
   const [choosing, setChoosing] = useState(false);
 
   // a carried task and the legacy "done" kind aren't in the picker — treat
@@ -306,6 +314,36 @@ export function LineMenu({
               <p className="lmenu__label">
                 Drawing{learnWord ? ` for “${learnWord}”` : ""}
               </p>
+              {options.length > 1 ? (
+                <div
+                  className="lmenu__words"
+                  role="group"
+                  aria-label="Which word to remember"
+                >
+                  {options.map((word) => {
+                    const already = iconFor(word, learned);
+                    return (
+                      <button
+                        key={word}
+                        type="button"
+                        className={`lmenu__word ${
+                          word === learnWord ? "lmenu__word--on" : ""
+                        }`}
+                        aria-pressed={word === learnWord}
+                        onClick={() => setPicked(word)}
+                      >
+                        {already ? (
+                          <LineIcon
+                            icon={already}
+                            className="lmenu__word-art"
+                          />
+                        ) : null}
+                        {word}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               {choosing ? (
                 <>
                   <div

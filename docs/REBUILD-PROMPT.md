@@ -155,9 +155,13 @@ Two rules that are not obvious until you get them wrong:
   nobody finds until the icon they expected isn't there.
 
 **Being taught.** When it guesses wrong or not at all, picking an icon from the
-line menu remembers it against one *word* — the longest word in the line that
-isn't furniture — so the next line saying it is already right. The menu says
-which word out loud, because a rule you can't see is one you can't correct.
+line menu remembers it against one *word*, so the next line saying it is already
+right. The menu says which word out loud, because a rule you can't see is one
+you can't correct — and it offers the line's other words as chips, because the
+default guess (the longest word that isn't furniture) is wrong often enough to
+matter: "meet Hama at the cafe" defaults to "meet", which is not the word
+anybody meant. Each chip shows what that word already draws, so it is obvious
+when you are about to overwrite an existing rule rather than make a new one.
 Being taught to draw *nothing* is a stored null rather than a deleted row, for
 the same reason a cleared week note keeps its row: an absent row can't win a
 merge. One row per word, so it merges per word like everything else.
