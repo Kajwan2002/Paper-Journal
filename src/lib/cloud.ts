@@ -1,7 +1,13 @@
 import type { FirebaseApp } from "firebase/app";
 import type { Auth, User } from "firebase/auth";
 import type { Firestore, Unsubscribe } from "firebase/firestore";
-import { db, type Notebook, type Page, type WeekNote } from "@/lib/db";
+import {
+  db,
+  type IconWord,
+  type Notebook,
+  type Page,
+  type WeekNote,
+} from "@/lib/db";
 import { flushAsync, subscribeJournal } from "@/lib/pageStore";
 import { mergeLines } from "@/lib/merge";
 import { newId } from "@/lib/id";
@@ -232,7 +238,7 @@ async function ensureSignedIn(mode: CloudMode): Promise<User> {
 
 // --- the wire --------------------------------------------------------
 
-type Kind = "pages" | "notebooks" | "weekNotes";
+type Kind = "pages" | "notebooks" | "weekNotes" | "iconWords";
 
 function pathOf(journalId: string, kind: Kind): string {
   return `journals/${journalId}/${kind}`;
@@ -278,6 +284,19 @@ async function absorbWeekNote(remote: WeekNote): Promise<boolean> {
   const mine = await db.weekNotes.get(remote.id);
   if (!mine || remote.updatedAt > mine.updatedAt) {
     await db.weekNotes.put(remote);
+    return true;
+  }
+  return false;
+}
+
+/** A word the notebook has been taught to draw. Newest teaching wins, and
+ *  a row is never deleted — being taught to draw *nothing* is a row with a
+ *  null icon, so it can win a merge against a stale guess. */
+async function absorbIconWord(remote: IconWord): Promise<boolean> {
+  if (!remote?.id || typeof remote.updatedAt !== "number") return false;
+  const mine = await db.iconWords.get(remote.id);
+  if (!mine || remote.updatedAt > mine.updatedAt) {
+    await db.iconWords.put(remote);
     return true;
   }
   return false;
@@ -329,9 +348,10 @@ async function localDocs(
   scope: Set<string> | null,
 ): Promise<Array<[Kind, string, object]>> {
   await flushAsync();
-  const [notebooks, weekNotes] = await Promise.all([
+  const [notebooks, weekNotes, iconWords] = await Promise.all([
     db.notebooks.toArray(),
     db.weekNotes.toArray(),
+    db.iconWords.toArray(),
   ]);
   const pages = scope
     ? (await Promise.all([...scope].map((id) => db.pages.get(id)))).filter(
@@ -343,6 +363,7 @@ async function localDocs(
     ...notebooks.map((n) => ["notebooks", n.id, n] as [Kind, string, object]),
     ...pages.map((p) => ["pages", p.id, p] as [Kind, string, object]),
     ...weekNotes.map((w) => ["weekNotes", w.id, w] as [Kind, string, object]),
+    ...iconWords.map((w) => ["iconWords", w.id, w] as [Kind, string, object]),
   ];
 }
 
@@ -456,6 +477,7 @@ export async function startCloud(): Promise<void> {
       listen(config.journalId, "pages", absorbPage as never),
       listen(config.journalId, "notebooks", absorbNotebook as never),
       listen(config.journalId, "weekNotes", absorbWeekNote as never),
+      listen(config.journalId, "iconWords", absorbIconWord as never),
     ]);
     listeners = opened.map((o) => o.stop);
 

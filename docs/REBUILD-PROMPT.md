@@ -130,6 +130,42 @@ Deadline urgencies: `late` (past) · `today` · `close` (≤2 days) · `soon` (�
 **Events can be moved by hand but are never carried automatically.** A meeting that
 didn't happen didn't move to tomorrow — it just didn't happen.
 
+## A drawing in the margin
+
+Write "gym" and a dumbbell appears next to the line; "shave face" a razor,
+"walk the dog" a paw. Line art only — stroked `currentColor` on a 24×24 grid, no
+fills and no colour, at about 50% ink. A filled or coloured icon stops reading
+as something the notebook drew and starts reading as an app badge.
+
+**Restraint is the feature, not a limitation.** An icon on every line is
+wallpaper you stop seeing; an icon on one line in four is a landmark you find
+from across the room. The dictionary holds only words that name a *thing you
+do* — never adjectives, never verbs of intent ("finish", "start", "try"). When
+it has no idea it draws nothing, and that is the right answer far more often
+than it is a failure.
+
+Two rules that are not obvious until you get them wrong:
+
+- **The most specific word wins, not the first.** "book flights" drew a book
+  until that rule existed. Length is a crude proxy for specificity and it is
+  right often enough; ties keep the earlier word so the choice is stable as a
+  line is edited.
+- **A plain plural is the same word**, tried only when the word itself misses —
+  otherwise "flights" silently matches nothing while "flight" works, which
+  nobody finds until the icon they expected isn't there.
+
+**Being taught.** When it guesses wrong or not at all, picking an icon from the
+line menu remembers it against one *word* — the longest word in the line that
+isn't furniture — so the next line saying it is already right. The menu says
+which word out loud, because a rule you can't see is one you can't correct.
+Being taught to draw *nothing* is a stored null rather than a deleted row, for
+the same reason a cleared week note keeps its row: an absent row can't win a
+merge. One row per word, so it merges per word like everything else.
+
+Give the column a fixed width and keep it even when a line has no icon. A
+column that collapsed per row would start the writing in a different place on
+every line, and the ragged left edge is far uglier than the gap.
+
 ## Rollover
 
 Every unfinished task is carried to today each morning, drawn `›`. There is **one live

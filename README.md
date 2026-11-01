@@ -58,6 +58,12 @@ npm run fonts        # re-download the self-hosted font subsets
 - **Open loops.** One ribbon shows every unfinished commitment in the notebook,
   grouped into what is asking for you now, what is filed for later, and
   someday. Tick things off or park them without leaving the list.
+- **A drawing in the margin.** Write "gym" and a dumbbell appears beside the
+  line; "shave face" gets a razor, "book flights" a plane. Line art in the same
+  ink as the writing, so a day can be read from across the room without reading
+  it. Most lines get nothing, which is the point — an icon on every line is an
+  icon on none. When it guesses wrong, or has no idea, pick one from the line's
+  `⋯` menu and it remembers that _word_ from then on, on every device.
 - **Search.** `⌘/Ctrl+F` or `/`. Filter by kind — every `★` you never finished,
   every event, every idea.
 - **A year ago.** The foot of each page quietly shows what you wrote on that day

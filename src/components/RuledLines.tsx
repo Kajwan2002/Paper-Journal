@@ -24,6 +24,9 @@ import { relativeDay, todayKey, type DayKey } from "@/lib/date";
 import { deadlineShort, urgencyOf } from "@/lib/deadline";
 import { NAG_CAP } from "@/lib/rollover";
 import { useQuickAdd } from "@/state/quickadd";
+import { iconFor } from "@/lib/iconfor";
+import { useLearned } from "@/lib/useLearned";
+import { LineIcon } from "@/components/LineIcon";
 import { LineMenu } from "@/components/LineMenu";
 import "./ruled-lines.css";
 
@@ -106,6 +109,7 @@ export function RuledLines({
   });
 
   // --- quick-add tray ---------------------------------------------------
+  const learned = useLearned();
   const pending = useQuickAdd((s) => s.pending);
   const consume = useQuickAdd((s) => s.consume);
   useEffect(() => {
@@ -391,6 +395,15 @@ export function RuledLines({
             >
               {glyphFor(line)}
             </button>
+
+            {(() => {
+              const icon = iconFor(line.text, learned);
+              return icon ? (
+                <LineIcon icon={icon} />
+              ) : (
+                <span className="ruled__icon" aria-hidden="true" />
+              );
+            })()}
 
             <input
               ref={(el) => {
