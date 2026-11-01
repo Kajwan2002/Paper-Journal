@@ -162,7 +162,7 @@
   margin: 0.1rem 0.4rem 0.2rem;
   /* tall enough for all of them at once on a desk, capped on a phone so
      the menu can't grow past the screen it is anchored in */
-  max-height: min(14rem, 34vh);
+  max-height: min(17rem, 38vh);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -202,4 +202,48 @@
   font-size: 0.72rem;
   line-height: 1.35;
   color: var(--ink-faint);
+}
+
+/* Which word the drawing gets remembered against. Only shown when there
+   is actually a choice — one word is not a decision, it is noise. A word
+   that already means something shows it, so you can see at a glance that
+   you are about to overwrite a rule rather than make a new one. */
+.lmenu__words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin: 0.1rem 0.4rem 0.25rem;
+}
+.lmenu__word {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.18rem 0.42rem;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+.lmenu__word:hover,
+.lmenu__word:focus-visible {
+  color: var(--oxblood);
+  border-color: color-mix(in srgb, var(--oxblood) 40%, transparent);
+}
+.lmenu__word--on {
+  color: var(--oxblood);
+  background: color-mix(in srgb, var(--oxblood) 10%, transparent);
+  border-color: color-mix(in srgb, var(--oxblood) 55%, transparent);
+}
+.lmenu__word-art {
+  width: 0.78rem;
+  height: 0.78rem;
+  flex: none;
 }

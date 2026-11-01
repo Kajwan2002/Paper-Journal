@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { cleanLearned, iconFor, wordToLearn } from "@/lib/iconfor";
+import {
+  cleanLearned,
+  iconFor,
+  learnableWords,
+  wordToLearn,
+} from "@/lib/iconfor";
 import { ICON_IDS, ICONS } from "@/lib/icons";
 
 describe("what the notebook draws", () => {
@@ -94,6 +99,20 @@ describe("being taught", () => {
     // clearing the icon on "gym run" must actually clear it, not fall
     // through and swap in a different drawing
     expect(iconFor("gym run", { gym: null })).toBeNull();
+  });
+
+  it("offers every word worth remembering, in reading order", () => {
+    expect(learnableWords("meet Hama at the cafe")).toEqual([
+      "meet",
+      "hama",
+      "cafe",
+    ]);
+    // two letters is the floor, so "dm" survives; "at" and "the" go by name
+    expect(learnableWords("dm shopping")).toEqual(["dm", "shopping"]);
+    expect(learnableWords("padel at 7")).toEqual(["padel"]);
+    expect(learnableWords("finish it today")).toEqual([]);
+    // the same word twice is one choice, not two
+    expect(learnableWords("gym and gym")).toEqual(["gym"]);
   });
 
   it("picks the word that makes the line what it is", () => {
