@@ -17,6 +17,11 @@ import {
   type LineKind,
 } from "@/lib/rapidlog";
 import { DayPicker } from "@/components/DayPicker";
+import { LineIcon } from "@/components/LineIcon";
+import { ICON_IDS } from "@/lib/icons";
+import { iconFor, wordToLearn } from "@/lib/iconfor";
+import { teach } from "@/lib/iconmemory";
+import { useLearned } from "@/lib/useLearned";
 import "./line-menu.css";
 
 interface Props {
@@ -132,6 +137,16 @@ export function LineMenu({
   const setDeadline = (day: DayKey | undefined) =>
     onPatch((l) => ({ ...l, deadline: day }));
   const setKind = (kind: LineKind) => onPatch((l) => ({ ...l, kind }));
+
+  // Teaching is per word, not per line: the point is that the next line
+  // saying the same thing is already right. A line with nothing but
+  // furniture in it ("finish it today") has no word worth remembering, so
+  // it is offered nothing rather than a control that quietly does nothing.
+  const learned = useLearned();
+  const learnWord = wordToLearn(line.text);
+  const teachable = learnWord !== null;
+  const drawn = iconFor(line.text, learned);
+  const [choosing, setChoosing] = useState(false);
 
   // a carried task and the legacy "done" kind aren't in the picker — treat
   // them as the closest thing on it, rather than showing nothing selected
@@ -285,6 +300,70 @@ export function LineMenu({
             </>
           ) : null}
           {movable ? <hr className="lmenu__rule" /> : null}
+
+          {!isBreadcrumb && teachable ? (
+            <>
+              <p className="lmenu__label">
+                Drawing{learnWord ? ` for “${learnWord}”` : ""}
+              </p>
+              {choosing ? (
+                <>
+                  <div
+                    className="lmenu__icons"
+                    role="group"
+                    aria-label="Drawing"
+                  >
+                    <button
+                      type="button"
+                      className={`lmenu__icon ${
+                        drawn === null ? "lmenu__icon--on" : ""
+                      }`}
+                      title="No drawing"
+                      aria-label="No drawing"
+                      aria-pressed={drawn === null}
+                      onClick={() => void teach(learnWord!, null)}
+                    >
+                      <span className="lmenu__icon-none">—</span>
+                    </button>
+                    {ICON_IDS.map((id) => (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`lmenu__icon ${
+                          drawn === id ? "lmenu__icon--on" : ""
+                        }`}
+                        title={id}
+                        aria-label={id}
+                        aria-pressed={drawn === id}
+                        onClick={() => void teach(learnWord!, id)}
+                      >
+                        <LineIcon icon={id} className="lmenu__icon-art" />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="lmenu__note">
+                    Whatever you pick, every line that says “{learnWord}” gets
+                    it from now on.
+                  </p>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="lmenu__item"
+                  onClick={() => setChoosing(true)}
+                >
+                  <span>{drawn ? "Change the drawing" : "Pick a drawing"}</span>
+                  {drawn ? (
+                    <LineIcon icon={drawn} className="lmenu__icon-art" />
+                  ) : (
+                    <span className="lmenu__hint">none</span>
+                  )}
+                </button>
+              )}
+              <hr className="lmenu__rule" />
+            </>
+          ) : null}
 
           {!isBreadcrumb ? (
             <>

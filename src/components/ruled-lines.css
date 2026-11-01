@@ -7,10 +7,13 @@
 .ruled__row {
   position: relative;
   display: grid;
-  /* glyph · text · schedule chip · tools. Four explicit tracks: with only
-     three, a row that grew a chip wrapped its tools onto a second line and
-     opened a hole in the ruling. */
-  grid-template-columns: 1.4rem minmax(0, 1fr) auto auto;
+  /* glyph · drawing · text · schedule chip · tools. Five explicit tracks:
+     with too few, a row that grew a chip wrapped its tools onto a second
+     line and opened a hole in the ruling. The drawing's track is a fixed
+     width and always present, even empty — a track that collapsed when a
+     line had no icon would leave the writing starting at a different place
+     on every row, and the ragged left edge is far uglier than the gap. */
+  grid-template-columns: 1.4rem 1.05rem minmax(0, 1fr) auto auto;
   align-items: end;
   gap: 0.4rem;
   min-height: 2.05rem;
@@ -362,4 +365,21 @@
    deadline chip beside it takes real width on a phone */
 .ruled__input {
   text-overflow: ellipsis;
+}
+
+/* The little drawings. Lighter than the writing on purpose: they are a
+   landmark you find without reading, not something to read. */
+.ruled__icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  align-self: center;
+  margin-bottom: 0.22rem;
+  color: color-mix(in srgb, var(--ink) 52%, transparent);
+  flex: none;
+}
+.ruled__row[data-struck="1"] .ruled__icon {
+  color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+.ruled__row--priority .ruled__icon {
+  color: color-mix(in srgb, var(--oxblood) 70%, transparent);
 }

@@ -44,10 +44,25 @@ export interface WeekNote {
   updatedAt: number;
 }
 
+/** One word the notebook has been taught to draw — or taught not to, which
+ *  is why `icon` is nullable rather than the row simply being deleted: a
+ *  deleted row has nothing for the merge to compare, so the other device
+ *  would put the old guess straight back. Same reasoning as a week note.
+ *
+ *  The word is the id, so two devices teaching the same word settle it the
+ *  way they settle everything else — per item, newest wins. */
+export interface IconWord {
+  /** the word itself, lowercased */
+  id: string;
+  icon: string | null;
+  updatedAt: number;
+}
+
 const db = new Dexie("marginalia") as Dexie & {
   notebooks: EntityTable<Notebook, "id">;
   pages: EntityTable<Page, "id">;
   weekNotes: EntityTable<WeekNote, "id">;
+  iconWords: EntityTable<IconWord, "id">;
 };
 
 db.version(1).stores({
@@ -59,6 +74,13 @@ db.version(2).stores({
   notebooks: "id, order, createdAt",
   pages: "id, notebookId, date, [notebookId+date], updatedAt",
   weekNotes: "id, notebookId, weekKey, [notebookId+weekKey], updatedAt",
+});
+
+db.version(3).stores({
+  notebooks: "id, order, createdAt",
+  pages: "id, notebookId, date, [notebookId+date], updatedAt",
+  weekNotes: "id, notebookId, weekKey, [notebookId+weekKey], updatedAt",
+  iconWords: "id, updatedAt",
 });
 
 export { db };

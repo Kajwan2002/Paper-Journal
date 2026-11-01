@@ -20,6 +20,9 @@ import { useOverlay } from "@/state/overlay";
 import { RuledLines } from "@/components/RuledLines";
 import { DueSoon } from "@/components/DueSoon";
 import { WeekFocus } from "@/components/WeekFocus";
+import { LineIcon } from "@/components/LineIcon";
+import { iconFor, type Learned } from "@/lib/iconfor";
+import { useLearned } from "@/lib/useLearned";
 import "./daily-page.css";
 
 interface Props {
@@ -150,7 +153,20 @@ function Marginalia({
   );
 }
 
+/** The same column the writing page has, so the two halves of a spread
+ *  line up. Its own component purely so the hook isn't called inside a
+ *  map. */
+function StaticIcon({ text, learned }: { text: string; learned: Learned }) {
+  const icon = iconFor(text, learned);
+  return icon ? (
+    <LineIcon icon={icon} />
+  ) : (
+    <span className="ruled__icon" aria-hidden="true" />
+  );
+}
+
 function StaticLines({ lines }: { lines: Line[] }) {
+  const learned = useLearned();
   // a someday line has nothing left to do on this page — it lives in Open
   // Loops until it's picked back up, same as the interactive view
   const written = lines.filter((l) => l.text.trim().length > 0 && !l.someday);
@@ -173,6 +189,7 @@ function StaticLines({ lines }: { lines: Line[] }) {
           data-struck={isStruck(l) ? "1" : "0"}
         >
           <span className="ruled__glyph">{glyphFor(l)}</span>
+          <StaticIcon text={l.text} learned={learned} />
           <span className="ruled__static">{l.text}</span>
           {l.deadline && !isStruck(l) ? (
             <span
