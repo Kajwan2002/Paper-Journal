@@ -12,8 +12,19 @@
      line and opened a hole in the ruling. The drawing's track is a fixed
      width and always present, even empty — a track that collapsed when a
      line had no icon would leave the writing starting at a different place
-     on every row, and the ragged left edge is far uglier than the gap. */
-  grid-template-columns: 1.4rem 1.05rem minmax(0, 1fr) auto auto;
+     on every row, and the ragged left edge is far uglier than the gap.
+
+     The lines are NAMED, and the chip and tools below are placed by name.
+     They used to be pinned to the numbers 3 and 4, which silently became
+     the wrong cells the moment the drawing track was inserted: the chip
+     landed on top of the writing and grid pushed it, and the tools, down
+     onto a second row. Names cannot rot that way. */
+  grid-template-columns:
+    [glyph] 1.4rem
+    [drawing] 1.05rem
+    [text] minmax(0, 1fr)
+    [chip] auto
+    [tools] auto;
   align-items: end;
   gap: 0.4rem;
   min-height: 2.05rem;
@@ -43,7 +54,13 @@
 .ruled__input {
   border: 0;
   background: transparent;
-  padding: 0 1.3rem 0.28rem 0;
+  /* The right padding used to be 1.3rem, from when the text track ran
+     under the tools and needed to keep clear of them. The chip and tools
+     have their own tracks now, so that was a fifth of the writing's width
+     spent on nothing — which is why a title next to a deadline truncated
+     so early on a phone. The grid gap already provides the breathing
+     room. */
+  padding: 0 0.3rem 0.28rem 0;
   font-family: var(--serif);
   font-size: 1.02rem;
   line-height: 1.5;
@@ -235,12 +252,14 @@
 /* --- scheduling chips ------------------------------------------------- */
 
 .ruled__chip {
-  grid-column: 3;
+  grid-column: chip;
   align-self: center;
-  padding: 0.05rem 0.34rem;
+  padding: 0.05rem 0.28rem;
   font-family: var(--mono);
   font-size: 0.58rem;
-  letter-spacing: 0.08em;
+  /* tighter than the app's other mono: a date is read as a shape, and
+     every 0.01em here is taken straight off the title beside it */
+  letter-spacing: 0.03em;
   text-transform: lowercase;
   white-space: nowrap;
   color: var(--brass);
@@ -258,7 +277,7 @@
 /* --- per-line tools --------------------------------------------------- */
 
 .ruled__tools {
-  grid-column: 4;
+  grid-column: tools;
   display: flex;
   align-items: center;
   gap: 0.1rem;
