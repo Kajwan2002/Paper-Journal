@@ -322,3 +322,27 @@ describe("cycleKind", () => {
     expect(cycleKind("migrated")).toBe(QUICK_KINDS[0]);
   });
 });
+
+describe("what a fresh line is", () => {
+  it("is an event, because most of a day is", () => {
+    // deliberate: the day on this page is mostly things that happen at a
+    // time, with tasks the exception among them. Starting every line as a
+    // note meant fixing the kind on most of the day.
+    expect(newLine().kind).toBe("event");
+    expect(newLine().text).toBe("");
+    expect(newLine().indent).toBe(0);
+  });
+
+  it("still takes a kind when one is asked for", () => {
+    expect(newLine("task").kind).toBe("task");
+    expect(newLine("note", "jotted", 1)).toMatchObject({
+      kind: "note",
+      text: "jotted",
+      indent: 1,
+    });
+  });
+
+  it("gives every line its own id", () => {
+    expect(newLine().id).not.toBe(newLine().id);
+  });
+});

@@ -218,11 +218,13 @@ export function RuledLines({
       e.preventDefault();
       settleLine(id);
       const prev = visible[idx];
-      const created = newLine(
-        prev.kind === "task" ? "task" : "note",
-        "",
-        prev.indent ?? 0,
-      );
+      // Enter always opens an event, whatever the line above was. It used
+      // to carry a task forward into another task, which is the classic
+      // bullet-journal flow but not the one this notebook is written in:
+      // the day is mostly events with a few tasks among them. The indent
+      // still carries, because that is about where you are, not what you
+      // are writing.
+      const created = newLine(undefined, "", prev.indent ?? 0);
       const next = [...rowsRef.current];
       const at = next.findIndex((l) => l.id === id);
       next.splice(at + 1, 0, created);

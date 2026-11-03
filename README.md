@@ -40,7 +40,10 @@ npm run fonts        # re-download the self-hosted font subsets
   work too. Tapping the paper puts the cursor where you tapped — it never turns
   the page, because a stray tap that jumps you to tomorrow mid‑sentence is the
   most annoying thing a notebook can do.
-- **Rapid logging.** Type a signifier at the start of a line:
+- **Rapid logging.** A new line starts as an event (`○`) — most of a day is
+  things that happen at a time — and you change it with one tap in the tray at
+  the foot of the screen, or `Alt+Enter`. Or type a signifier at the start of a
+  line:
   `-` task · `x` done · `o` event · `>` moved · `*` priority · `~` idea · (plain) note.
   Tap a line's glyph to tick it off, or `⌘/Ctrl+Enter` without leaving the
   keyboard. `Tab` indents one level, `Alt+↑/↓` moves a line, `⌫` on an empty
