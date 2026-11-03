@@ -94,6 +94,14 @@ Budget serious effort here. If this feels wrong, nothing else matters.
 A signifier at the start of a line, stripped on entry, setting the line's kind:
 `-` task · `x` done · `o` event · `>` moved · `*` priority · `~` idea · plain = note.
 
+**A fresh line is an event**, including the one Enter opens, whatever the line
+above it was. A day on this page is mostly things that happen at a time, with
+tasks the exception written in among them, so defaulting to anything else means
+fixing the kind on most of the day. The classic bullet-journal rule — a task
+Enters into another task — reads well and is wrong here for the same reason.
+The indent still carries, because that is about where you are rather than what
+you are writing.
+
 There is no separate `done` kind in the model — done is a task with a strike time, so
 unticking is lossless and the legacy kind is normalised away on read.
 

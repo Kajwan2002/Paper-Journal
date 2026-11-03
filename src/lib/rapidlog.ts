@@ -249,8 +249,16 @@ export function toggleWithChildren(lines: Line[], id: string): Line[] {
   });
 }
 
+/** A fresh line is an **event** unless something says otherwise.
+ *
+ *  A day on this page is mostly things that happen at a time — breakfast,
+ *  work, a lecture — and the tasks are the exception written in among
+ *  them. Starting every line as a note meant retyping the signifier, or
+ *  cycling the kind, on most of the day. Changing it is one tap in the
+ *  quick-add tray or one Alt+Enter, so the cheap thing to do is default to
+ *  the common case. */
 export function newLine(
-  kind: LineKind = "note",
+  kind: LineKind = "event",
   text = "",
   indent: 0 | 1 = 0,
 ): Line {
