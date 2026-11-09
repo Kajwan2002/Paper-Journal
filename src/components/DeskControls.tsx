@@ -61,6 +61,15 @@ export function DeskControls({
           >
             ⌕
           </button>
+          <button
+            type="button"
+            className="deskctl__btn"
+            title="The month"
+            aria-label="The month, read back"
+            onClick={() => show("review")}
+          >
+            ▦
+          </button>
         </>
       ) : null}
       <button

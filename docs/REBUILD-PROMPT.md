@@ -201,6 +201,40 @@ The row is kept even when you clear every line: a deleted row has no timestamp f
 merge to compare, so the next sync can't tell "I cleared this" from "I never had it"
 and puts the old text back. An empty row with a fresh timestamp is the tombstone.
 
+## The month, read back
+
+One page behind a ribbon, not a dashboard. No graphs, no percentages, no score:
+the notebook's rule is that the page stays analog, so this is a dot grid, a row
+of the drawings it already makes, and at most three sentences, all in the same
+ink as the writing.
+
+- **A dot grid**, one small circle per day, four steps of ink by how much was
+  written. Dots, not filled tiles in a 7-column grid — that reads as a
+  contribution heatmap, which is the exact look being avoided. Blank days stay
+  as empty rings; the gaps are what you came to see.
+- **What the month was made of**: the margin drawings, counted. Nothing had to
+  be tagged for this to work, which is what makes it worth having.
+- **What it cost**: what you kept moving and never did, and deadlines met
+  against missed.
+- **Two or three observed sentences**, set in italic serif like a margin note.
+
+Two rules run through the maths:
+
+- **Count line ids, never lines.** A carried task keeps one id across every
+  copy of itself, so counting rows scores a task dragged through eleven
+  mornings eleven times. The weekly tally made this mistake once already.
+- **Say nothing rather than something shaky.** Every remark has a floor it will
+  not speak beneath — no favourite weekday under a dozen finished tasks or
+  without a real lean, no comparison to last month before the month is far
+  enough along. A notebook that invents patterns is worse than a silent one.
+
+Two things that are wrong in a way you only find by checking: a single carry is
+an ordinary morning rather than a cost, so the "kept moving" list starts at
+two; and deadlines must be collected from breadcrumbs too, or a missed one
+vanishes from the month it was missed in the moment the task is carried into
+the next month — leaving the page reporting its successes and quietly forgetting
+the rest.
+
 ## Coming Up
 
 A standing panel at the foot of today's page: everything with a deadline, nearest

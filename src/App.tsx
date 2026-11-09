@@ -20,6 +20,7 @@ import { Book } from "@/components/Book";
 import { MonthJump } from "@/components/MonthJump";
 import { Search } from "@/components/Search";
 import { OpenLoops } from "@/components/OpenLoops";
+import { MonthReview } from "@/components/MonthReview";
 import { Settings } from "@/components/Settings";
 import "./app.css";
 
@@ -244,6 +245,13 @@ export function App() {
       ) : null}
       {current && overlay === "search" ? (
         <Search notebookId={current.id} onClose={closeOverlay} />
+      ) : null}
+      {current && overlay === "review" ? (
+        <MonthReview
+          notebookId={current.id}
+          anchorDate={date}
+          onClose={closeOverlay}
+        />
       ) : null}
       {current && overlay === "loops" ? (
         <OpenLoops notebookId={current.id} onClose={closeOverlay} />
