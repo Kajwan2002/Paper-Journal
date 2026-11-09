@@ -5,8 +5,17 @@ import type { Line, LineKind } from "@/lib/rapidlog";
 
 const NB = "nb";
 
+/** Crossed off by default: that is what the page counts, so it is what
+ *  most of these tests are about. */
 function line(id: string, text: string, extra: Partial<Line> = {}): Line {
-  return { id, kind: "task" as LineKind, text, indent: 0, ...extra };
+  return {
+    id,
+    kind: "task" as LineKind,
+    text,
+    indent: 0,
+    struck: true,
+    ...extra,
+  };
 }
 
 function page(date: string, lines: Line[]): Page {
@@ -31,19 +40,39 @@ describe("how many times you did a thing", () => {
     expect(r.guitar ?? r.Guitar).toBe(3);
   });
 
-  it("does not care whether you ticked it off", () => {
-    // the point of the rewrite: a month is not a scoreboard, and plenty
-    // of things get done without ever being struck through
-    const done = counts([
-      page("2026-11-02", [line("a", "guitar", { struck: true })]),
-      page("2026-11-03", [line("b", "guitar", { struck: true })]),
-    ]);
-    const undone = counts([
+  it("counts a thing only once it is crossed off", () => {
+    // writing it down is an intention; striking it through is the one
+    // unambiguous mark that it happened
+    const struck = counts([
       page("2026-11-02", [line("a", "guitar")]),
       page("2026-11-03", [line("b", "guitar")]),
     ]);
-    expect(done.guitar).toBe(2);
-    expect(undone.guitar).toBe(2);
+    const written = counts([
+      page("2026-11-02", [line("a", "guitar", { struck: false })]),
+      page("2026-11-03", [line("b", "guitar", { struck: false })]),
+    ]);
+    expect(struck.guitar).toBe(2);
+    expect(written).toEqual({});
+  });
+
+  it("counts a crossed-off line of any kind, not just a task", () => {
+    // an event struck through is as much a thing you did as a task is
+    const r = counts([
+      page("2026-11-02", [line("a", "guitar", { kind: "event" })]),
+      page("2026-11-03", [line("b", "guitar", { kind: "note" })]),
+    ]);
+    expect(r.guitar).toBe(2);
+  });
+
+  it("counts the half of a month you got to, not the whole list", () => {
+    const r = counts([
+      page("2026-11-02", [
+        line("a", "guitar"),
+        line("b", "guitar", { struck: false }),
+      ]),
+      page("2026-11-03", [line("c", "guitar")]),
+    ]);
+    expect(r.guitar).toBe(2);
   });
 
   it("counts a carried task once, however many mornings it moved", () => {
@@ -52,6 +81,7 @@ describe("how many times you did a thing", () => {
     const pages = ["10", "11", "12", "13"].map((d) =>
       page(`2026-11-${d}`, [
         line("one", "studied", {
+          struck: d === "13",
           carriedTo: d === "13" ? undefined : `2026-11-${Number(d) + 1}`,
         }),
       ]),
@@ -157,6 +187,17 @@ describe("what it leaves out", () => {
     expect(review([]).things).toEqual([]);
     expect(review([]).written).toBe(0);
     expect(review([page("2026-11-02", [line("a", "   ")])]).written).toBe(0);
+  });
+
+  it("knows a month you wrote in but never crossed anything off", () => {
+    // so the page can say "nothing crossed off" rather than "nothing
+    // written", which would be a lie and would read as a bug
+    const r = review([
+      page("2026-11-02", [line("a", "guitar", { struck: false })]),
+      page("2026-11-03", [line("b", "guitar", { struck: false })]),
+    ]);
+    expect(r.written).toBe(2);
+    expect(r.things).toEqual([]);
   });
 
   it("never runs on past a page's worth", () => {

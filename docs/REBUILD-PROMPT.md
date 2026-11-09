@@ -213,9 +213,14 @@ productive each day was, tasks ticked, deadlines met, streaks. It was rightly
 thrown out. A journal is not a scoreboard, most days are not finished, and a
 page that grades the month is a page you stop opening. Build the count.
 
-Four rules, each of which is wrong in a way you only find by looking at real
+Five rules, most of which are wrong in a way you only find by looking at real
 output:
 
+- **A thing counts when it is crossed off**, of any kind — an event struck
+  through is as much a thing you did as a task is. Lines merely written down
+  are intentions as often as records. This one is worth asking about rather
+  than guessing: a journal kept as a log wants the opposite answer, and the
+  page is wrong either way round if you pick for the person.
 - **Count by word, not by the margin drawing.** The drawings deliberately lump
   things together — studying, reading and a lecture all draw a book, and "3d
   art" draws nothing — so counting icons merges things that are not the same.

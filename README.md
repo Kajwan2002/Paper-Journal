@@ -68,11 +68,12 @@ npm run fonts        # re-download the self-hosted font subsets
   icon on none. When it guesses wrong, or has no idea, pick one from the line's
   `⋯` menu and it remembers that _word_ from then on, on every device.
 - **The month, counted.** The `▦` ribbon opens one page: how many times you
-  did each thing — `guitar · 7`, `3d art · 13`, `read a chapter · 4` — commonest
-  first, with its margin drawing beside it. Counted by word rather than by
-  drawing, because studying and reading both draw a book and are not the same
-  thing. Nothing has to be tagged for this to work, and it is not a scoreboard:
-  there is no score, no streak and no share of tasks ticked.
+  did each thing — `guitar · 7`, `3d art · 13`, `read a chapter · 4` —
+  commonest first, with its margin drawing beside it. A thing counts when you
+  **cross it off**, of any kind: the strike is the one unambiguous mark meaning
+  it happened. Counted by word rather than by drawing, because studying and
+  reading both draw a book and are not the same thing. Nothing has to be tagged
+  for any of it, and it is not a scoreboard — no score, no streak, no share.
 - **Search.** `⌘/Ctrl+F` or `/`. Filter by kind — every `★` you never finished,
   every event, every idea.
 - **A year ago.** The foot of each page quietly shows what you wrote on that day
