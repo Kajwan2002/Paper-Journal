@@ -22,11 +22,11 @@ interface Props {
 
 /** The month, counted.
  *
- *  One question, answered once: how many times did I do each thing,
- *  counted from the lines struck through. No grid of which days were
- *  productive, no share ticked, no score — a journal that grades you is
- *  one you stop opening, and the count is the only part that was ever
- *  worth reading. */
+ *  One question, answered once: how many times did I do each thing. The
+ *  crossings lead and the times it was written down follow, so the page
+ *  is true whether the notebook is kept as a list or as a log. No grid of
+ *  which days were productive, no score — a journal that grades you is
+ *  one you stop opening. */
 export function MonthReview({ notebookId, anchorDate, onClose }: Props) {
   const learned = useLearned();
   const [month, setMonth] = useState(() => startOfMonth(anchorDate));
@@ -83,7 +83,7 @@ export function MonthReview({ notebookId, anchorDate, onClose }: Props) {
           <p className="mrev__empty">
             {review.written === 0
               ? "Nothing written this month."
-              : "Nothing crossed off more than once yet. This counts what you strike through."}
+              : "Nothing has come up more than once yet."}
           </p>
         ) : (
           <ul className="mrev__things">
@@ -96,7 +96,13 @@ export function MonthReview({ notebookId, anchorDate, onClose }: Props) {
                 </span>
                 <span className="mrev__word">{thing.word}</span>
                 <span className="mrev__rule" aria-hidden="true" />
-                <span className="mrev__n">{thing.count}</span>
+                <span className="mrev__n">
+                  {thing.done}
+                  {/* nothing to say when you did everything you wrote */}
+                  {thing.done === thing.written ? null : (
+                    <span className="mrev__of"> of {thing.written}</span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

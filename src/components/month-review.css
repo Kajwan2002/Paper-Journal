@@ -85,3 +85,9 @@
   font-size: 0.95rem;
   color: var(--ink-faint);
 }
+
+/* "5 of 7" — the crossings in full ink, what was written down behind
+   them in a lighter hand, so the eye lands on the answer first. */
+.mrev__of {
+  color: var(--ink-faint);
+}

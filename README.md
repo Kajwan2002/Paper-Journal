@@ -69,11 +69,14 @@ npm run fonts        # re-download the self-hosted font subsets
   `⋯` menu and it remembers that _word_ from then on, on every device.
 - **The month, counted.** The `▦` ribbon opens one page: how many times you
   did each thing — `guitar · 7`, `3d art · 13`, `read a chapter · 4` —
-  commonest first, with its margin drawing beside it. A thing counts when you
-  **cross it off**, of any kind: the strike is the one unambiguous mark meaning
-  it happened. Counted by word rather than by drawing, because studying and
-  reading both draw a book and are not the same thing. Nothing has to be tagged
-  for any of it, and it is not a scoreboard — no score, no streak, no share.
+  commonest first, with its margin drawing beside it. Both numbers: `5 of 7` is
+  five crossed off out of seven written down, and a bare `5` means you did
+  everything you wrote. The strike is the one unambiguous mark meaning it
+  happened, so it leads — but a thing written eight times and never ticked is
+  worth seeing too, and the page stays true whether the notebook is kept as a
+  list or as a log. Counted by word rather than by drawing, because studying
+  and reading both draw a book and are not the same thing. Nothing has to be
+  tagged, and it is not a scoreboard — no score, no streak, no share.
 - **Search.** `⌘/Ctrl+F` or `/`. Filter by kind — every `★` you never finished,
   every event, every idea.
 - **A year ago.** The foot of each page quietly shows what you wrote on that day
