@@ -216,11 +216,14 @@ page that grades the month is a page you stop opening. Build the count.
 Five rules, most of which are wrong in a way you only find by looking at real
 output:
 
-- **A thing counts when it is crossed off**, of any kind — an event struck
-  through is as much a thing you did as a task is. Lines merely written down
-  are intentions as often as records. This one is worth asking about rather
-  than guessing: a journal kept as a log wants the opposite answer, and the
-  page is wrong either way round if you pick for the person.
+- **Carry both numbers**: how many times a thing was crossed off, and how many
+  times it was written down at all — `5 of 7`, falling back to a bare `5` when
+  they agree. The strike is the one unambiguous mark meaning it happened, so it
+  leads and the list sorts by it; when nothing is crossed off the whole list
+  ties on zero and falls through to how often each thing was written, which is
+  the right page for a notebook kept as a log. Either number alone is wrong for
+  half the people who would use this, and guessing which half costs a rewrite —
+  it did here, twice.
 - **Count by word, not by the margin drawing.** The drawings deliberately lump
   things together — studying, reading and a lecture all draw a book, and "3d
   art" draws nothing — so counting icons merges things that are not the same.

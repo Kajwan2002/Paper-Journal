@@ -25,9 +25,19 @@ function page(date: string, lines: Line[]): Page {
 const review = (pages: Page[], learned = {}, floor = 2) =>
   reviewMonth(pages, "2026-11-01", learned, floor);
 
+/** word → times crossed off */
 const counts = (pages: Page[], learned = {}, floor = 2) =>
   Object.fromEntries(
-    review(pages, learned, floor).things.map((t) => [t.word, t.count]),
+    review(pages, learned, floor).things.map((t) => [t.word, t.done]),
+  );
+
+/** word → "done of written" */
+const pairs = (pages: Page[], learned = {}, floor = 2) =>
+  Object.fromEntries(
+    review(pages, learned, floor).things.map((t) => [
+      t.word,
+      `${t.done} of ${t.written}`,
+    ]),
   );
 
 describe("how many times you did a thing", () => {
@@ -40,19 +50,47 @@ describe("how many times you did a thing", () => {
     expect(r.guitar ?? r.Guitar).toBe(3);
   });
 
-  it("counts a thing only once it is crossed off", () => {
-    // writing it down is an intention; striking it through is the one
-    // unambiguous mark that it happened
-    const struck = counts([
+  it("gives both numbers: crossed off, and written down", () => {
+    const r = pairs([
       page("2026-11-02", [line("a", "guitar")]),
       page("2026-11-03", [line("b", "guitar")]),
+      page("2026-11-04", [line("c", "guitar", { struck: false })]),
     ]);
-    const written = counts([
+    expect(r.guitar).toBe("2 of 3");
+  });
+
+  it("still lists a thing written down and never crossed off", () => {
+    // a notebook kept as a log would otherwise read as an empty month
+    const r = pairs([
       page("2026-11-02", [line("a", "guitar", { struck: false })]),
       page("2026-11-03", [line("b", "guitar", { struck: false })]),
     ]);
-    expect(struck.guitar).toBe(2);
-    expect(written).toEqual({});
+    expect(r.guitar).toBe("0 of 2");
+  });
+
+  it("leads with the crossings, and falls back to what was written", () => {
+    const r = review(
+      [
+        // crossed off twice, written twice
+        page("2026-11-02", [
+          line("a", "gym"),
+          line("b", "emails", { struck: false }),
+        ]),
+        page("2026-11-03", [
+          line("c", "gym"),
+          line("d", "emails", { struck: false }),
+        ]),
+        // written four times, never crossed off
+        page("2026-11-04", [line("e", "emails", { struck: false })]),
+        page("2026-11-05", [line("f", "emails", { struck: false })]),
+      ],
+      {},
+      1,
+    );
+    expect(r.things.map((t) => [t.word, t.done, t.written])).toEqual([
+      ["gym", 2, 2],
+      ["emails", 0, 4],
+    ]);
   });
 
   it("counts a crossed-off line of any kind, not just a task", () => {
@@ -65,14 +103,14 @@ describe("how many times you did a thing", () => {
   });
 
   it("counts the half of a month you got to, not the whole list", () => {
-    const r = counts([
+    const r = pairs([
       page("2026-11-02", [
         line("a", "guitar"),
         line("b", "guitar", { struck: false }),
       ]),
       page("2026-11-03", [line("c", "guitar")]),
     ]);
-    expect(r.guitar).toBe(2);
+    expect(r.guitar).toBe("2 of 3");
   });
 
   it("counts a carried task once, however many mornings it moved", () => {
@@ -86,7 +124,7 @@ describe("how many times you did a thing", () => {
         }),
       ]),
     );
-    expect(counts(pages, {}, 1)).toEqual({ studied: 1 });
+    expect(pairs(pages, {}, 1)).toEqual({ studied: "1 of 1" });
   });
 
   it("counts a word twice in one line only once", () => {
@@ -119,7 +157,7 @@ describe("how many times you did a thing", () => {
       {},
       1,
     );
-    expect(r.things.map((t) => [t.word, t.count])).toEqual([
+    expect(r.things.map((t) => [t.word, t.done])).toEqual([
       ["gym", 3],
       ["guitar", 2],
     ]);
@@ -189,15 +227,13 @@ describe("what it leaves out", () => {
     expect(review([page("2026-11-02", [line("a", "   ")])]).written).toBe(0);
   });
 
-  it("knows a month you wrote in but never crossed anything off", () => {
-    // so the page can say "nothing crossed off" rather than "nothing
-    // written", which would be a lie and would read as a bug
+  it("knows how much was written, for telling the empty months apart", () => {
     const r = review([
       page("2026-11-02", [line("a", "guitar", { struck: false })]),
-      page("2026-11-03", [line("b", "guitar", { struck: false })]),
+      page("2026-11-03", [line("b", "dentist", { struck: false })]),
     ]);
     expect(r.written).toBe(2);
-    expect(r.things).toEqual([]);
+    expect(r.things).toEqual([]); // neither came up twice
   });
 
   it("never runs on past a page's worth", () => {
@@ -221,7 +257,11 @@ describe("things written as more than one word", () => {
       1,
     );
     expect(r.things).toHaveLength(1);
-    expect(r.things[0]).toMatchObject({ word: "clean the kitchen", count: 3 });
+    expect(r.things[0]).toMatchObject({
+      word: "clean the kitchen",
+      done: 3,
+      written: 3,
+    });
   });
 
   it("keeps the wider word and drops its qualifier", () => {
@@ -236,7 +276,7 @@ describe("things written as more than one word", () => {
       {},
       1,
     );
-    expect(r.things.map((t) => [t.word.toLowerCase(), t.count])).toEqual([
+    expect(r.things.map((t) => [t.word.toLowerCase(), t.done])).toEqual([
       ["guitar", 3],
     ]);
   });

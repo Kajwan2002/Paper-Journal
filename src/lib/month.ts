@@ -12,10 +12,12 @@ import type { IconId } from "@/lib/icons";
  *  opening. The first version of this counted finished days and was
  *  rightly thrown out.
  *
- *  A thing counts when it is **crossed off**, of any kind: striking a
- *  line through is the one unambiguous mark meaning "this happened". It
- *  deliberately does not count lines merely written down, which are
- *  intentions as often as records.
+ *  Each thing carries both numbers: how many times it was crossed off,
+ *  and how many times it was written down at all. The strike is the one
+ *  unambiguous mark meaning "this happened", so it leads — but a thing
+ *  written eight times and never struck is worth seeing too, and a
+ *  notebook kept as a log would otherwise read as an empty month. Two
+ *  numbers mean the page is true however it is kept.
  *
  *  Counting is by **word**, not by the margin drawing, because the
  *  drawings deliberately lump things together: studying, reading and a
@@ -30,7 +32,10 @@ import type { IconId } from "@/lib/icons";
 export interface Thing {
   /** the word, in the form it was most often written */
   word: string;
-  count: number;
+  /** times it was crossed off — the answer to "how many times did I" */
+  done: number;
+  /** times it was written down at all, crossed off or not */
+  written: number;
   /** the margin drawing for it, when there is one */
   icon: IconId | null;
 }
@@ -262,6 +267,8 @@ export function reviewMonth(
   /** word → the line ids it appeared on, so a word written twice in one
    *  line counts once and a carried task counts once however far it went */
   const seen = new Map<string, Set<string>>();
+  /** word → the line ids where it was crossed off */
+  const crossed = new Map<string, Set<string>>();
   /** word → how it was actually written, so the page says "Guitar" if that
    *  is what you write */
   const spelt = new Map<string, Map<string, number>>();
@@ -271,8 +278,9 @@ export function reviewMonth(
 
   for (const page of pages) {
     if (page.date < from || page.date > to) continue;
-    for (const line of living(page)) lines.add(line.id);
-    for (const line of done(page)) {
+    const struck = new Set(done(page).map((l) => l.id));
+    for (const line of living(page)) {
+      lines.add(line.id);
       said.set(line.id, line.text.trim());
       for (const original of line.text.split(/[^\p{L}\p{N}]+/u)) {
         const word = original.toLowerCase();
@@ -280,6 +288,11 @@ export function reviewMonth(
         let ids = seen.get(word);
         if (!ids) seen.set(word, (ids = new Set()));
         ids.add(line.id);
+        if (struck.has(line.id)) {
+          let hit = crossed.get(word);
+          if (!hit) crossed.set(word, (hit = new Set()));
+          hit.add(line.id);
+        }
         let forms = spelt.get(word);
         if (!forms) spelt.set(word, (forms = new Map()));
         forms.set(original, (forms.get(original) ?? 0) + 1);
@@ -325,13 +338,25 @@ export function reviewMonth(
         : // they only ever appear together, so the line itself is the name
           (commonest(tally(ids.map((id) => said.get(id) ?? ""))) ??
           group.join(" "));
+    const struck = new Set<string>();
+    for (const member of group) {
+      for (const id of crossed.get(member) ?? []) struck.add(id);
+    }
     things.push({
       word,
-      count: ids.length,
+      done: struck.size,
+      written: ids.length,
       icon: iconFor(word, learned) ?? iconFor(group[0], learned),
     });
   }
-  things.sort((a, b) => b.count - a.count || a.word.localeCompare(b.word));
+  // The crossings lead, because they are the answer to the question. When
+  // nothing is crossed off at all the whole list ties on zero and falls
+  // through to how often each thing was written, which is exactly the
+  // right page for a notebook kept as a log.
+  things.sort(
+    (a, b) =>
+      b.done - a.done || b.written - a.written || a.word.localeCompare(b.word),
+  );
 
   return {
     month: from,
