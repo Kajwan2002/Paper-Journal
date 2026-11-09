@@ -1,16 +1,21 @@
 import type { Page } from "@/lib/db";
 import { endOfMonth, monthTitle, startOfMonth, type DayKey } from "@/lib/date";
-import type { Line } from "@/lib/rapidlog";
+import { isStruck, type Line } from "@/lib/rapidlog";
 import { iconFor, type Learned } from "@/lib/iconfor";
 import type { IconId } from "@/lib/icons";
 
 /** A month, counted.
  *
  *  One question: how many times did I do each thing. Not how many days
- *  were productive, not what share of tasks got ticked — a journal is not
- *  a scoreboard, and a page that grades the month is a page you stop
+ *  were productive, not what share got ticked — a journal is not a
+ *  scoreboard, and a page that grades the month is a page you stop
  *  opening. The first version of this counted finished days and was
  *  rightly thrown out.
+ *
+ *  A thing counts when it is **crossed off**, of any kind: striking a
+ *  line through is the one unambiguous mark meaning "this happened". It
+ *  deliberately does not count lines merely written down, which are
+ *  intentions as often as records.
  *
  *  Counting is by **word**, not by the margin drawing, because the
  *  drawings deliberately lump things together: studying, reading and a
@@ -34,7 +39,8 @@ export interface MonthReview {
   month: DayKey;
   title: string;
   things: Thing[];
-  /** distinct lines written in the month */
+  /** distinct lines written in the month, crossed off or not — only to
+   *  tell "you wrote nothing" apart from "you crossed nothing off" */
   written: number;
 }
 
@@ -232,6 +238,12 @@ function living(page: Page): Line[] {
   );
 }
 
+/** Things that happened. Any kind of line — an event struck through is as
+ *  much a thing you did as a task is. */
+function done(page: Page): Line[] {
+  return living(page).filter(isStruck);
+}
+
 /**
  * What the month was made of, commonest first.
  *
@@ -259,8 +271,8 @@ export function reviewMonth(
 
   for (const page of pages) {
     if (page.date < from || page.date > to) continue;
-    for (const line of living(page)) {
-      lines.add(line.id);
+    for (const line of living(page)) lines.add(line.id);
+    for (const line of done(page)) {
       said.set(line.id, line.text.trim());
       for (const original of line.text.split(/[^\p{L}\p{N}]+/u)) {
         const word = original.toLowerCase();
