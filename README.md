@@ -67,6 +67,12 @@ npm run fonts        # re-download the self-hosted font subsets
   it. Most lines get nothing, which is the point — an icon on every line is an
   icon on none. When it guesses wrong, or has no idea, pick one from the line's
   `⋯` menu and it remembers that _word_ from then on, on every device.
+- **The month, read back.** The `▦` ribbon opens a month on one page: a dot
+  grid where the gaps are the point, what the month was made of (counted from
+  the drawings, so nothing needed tagging), what you kept moving and never did,
+  and at most three observed sentences — "You finish most on Tuesdays", "You
+  wrote 20 days running". No graphs, no score. Each remark has a floor it won't
+  speak beneath, because a pattern drawn from four data points is noise.
 - **Search.** `⌘/Ctrl+F` or `/`. Filter by kind — every `★` you never finished,
   every event, every idea.
 - **A year ago.** The foot of each page quietly shows what you wrote on that day
