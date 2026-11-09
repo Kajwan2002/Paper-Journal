@@ -1,6 +1,6 @@
-/* The month, read back. Everything here is the same ink as the writing —
-   no accent colours, no bars, no percentages. The one thing the eye should
-   catch is where the gaps are. */
+/* The month, counted. One list: what you did and how often. Set like a
+   page of the notebook — a leader rule to the number, the same ink as the
+   writing, nothing that reads as a readout. */
 
 .mrev__head {
   display: grid;
@@ -32,143 +32,56 @@
   cursor: default;
 }
 
-/* --- the dot grid ---------------------------------------------------- */
-
-/* Dots, not tiles. Filled squares in a 7-column grid read as a
-   contribution heatmap — the exact dashboard look this page is trying not
-   to be. A small circle of ink in a lot of paper reads as a notebook, and
-   it keeps the whole month inside a couple of centimetres so the writing
-   underneath is still the page. */
-
-.mrev__grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  justify-items: center;
-  align-items: center;
-  gap: 0.42rem 0;
-  margin: 0.55rem auto 0.7rem;
-  max-width: 15rem;
-}
-.mrev__dow {
-  font-family: var(--mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.08em;
-  color: var(--ink-faint);
-  padding-bottom: 0.15rem;
-}
-.mrev__day {
-  width: 0.58rem;
-  height: 0.58rem;
-  border-radius: 999px;
-  /* a day with nothing on it is still a dot on the grid, just an empty
-     one — the gaps are what you came to see */
-  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
-  background: transparent;
-}
-/* four steps, and no more: a busy day against a very busy one is not
-   worth reading, a written day against a blank one is the whole point */
-.mrev__day[data-ink="1"] {
-  background: color-mix(in srgb, var(--ink) 30%, transparent);
-  border-color: transparent;
-}
-.mrev__day[data-ink="2"] {
-  background: color-mix(in srgb, var(--ink) 58%, transparent);
-  border-color: transparent;
-}
-.mrev__day[data-ink="3"] {
-  background: var(--ink);
-  border-color: transparent;
-}
-.mrev__day--future {
-  border-color: color-mix(in srgb, var(--ink) 10%, transparent);
-}
-.mrev__day--today {
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 3px var(--oxblood);
-}
-
-.mrev__count {
-  margin: 0 0.1rem 0.2rem;
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.06em;
-  color: var(--ink-soft);
-}
-
-/* --- the blocks ------------------------------------------------------- */
-
-.mrev__block {
-  margin-top: 1.15rem;
-}
-.mrev__label {
-  margin: 0 0 0.35rem;
-  font-family: var(--mono);
-  font-size: 0.56rem;
-  font-weight: 400;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
-
 .mrev__things {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem 1rem;
-  margin: 0;
+  margin: 0.5rem 0 0;
   padding: 0;
   list-style: none;
 }
 .mrev__thing {
-  display: inline-flex;
+  display: grid;
+  /* drawing · word · the rule that carries the eye · count */
+  grid-template-columns: 1.3rem auto 1fr auto;
+  align-items: baseline;
+  gap: 0.1rem;
+  padding: 0.32rem 0;
+}
+.mrev__thing + .mrev__thing {
+  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.mrev__mark {
+  display: flex;
   align-items: center;
-  gap: 0.3rem;
-  color: var(--ink-soft);
+  justify-content: flex-start;
+  align-self: center;
 }
 .mrev__icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1rem;
+  height: 1rem;
+  color: color-mix(in srgb, var(--ink) 52%, transparent);
+}
+.mrev__word {
+  font-family: var(--serif);
+  font-size: 1rem;
+  color: var(--ink);
+}
+/* a dotted leader, the way a contents page carries the eye across */
+.mrev__rule {
+  align-self: center;
+  height: 1px;
+  margin: 0 0.45rem;
+  border-bottom: 1px dotted color-mix(in srgb, var(--ink) 24%, transparent);
 }
 .mrev__n {
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 
-.mrev__cost {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.6rem;
-  margin: 0 0 0.22rem;
-  font-family: var(--serif);
-  font-size: 0.88rem;
-  color: var(--ink);
-}
-.mrev__cost-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mrev__cost-n {
-  flex: none;
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-}
-
-/* The sentences. Set in italic serif, like a note written in the margin
-   rather than a readout. */
-.mrev__block--said {
-  padding-top: 0.85rem;
-  border-top: 1px solid color-mix(in srgb, var(--ink) 11%, transparent);
-}
-.mrev__remark {
-  margin: 0 0 0.3rem;
+.mrev__empty {
+  margin: 1rem 0 0;
   font-family: var(--serif);
   font-style: italic;
-  font-size: 0.92rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
+  font-size: 0.95rem;
+  color: var(--ink-faint);
 }

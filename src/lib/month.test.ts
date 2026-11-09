@@ -4,308 +4,266 @@ import type { Page } from "@/lib/db";
 import type { Line, LineKind } from "@/lib/rapidlog";
 
 const NB = "nb";
-const TODAY = "2026-11-20";
 
 function line(id: string, text: string, extra: Partial<Line> = {}): Line {
   return { id, kind: "task" as LineKind, text, indent: 0, ...extra };
 }
 
 function page(date: string, lines: Line[]): Page {
-  return {
-    id: `${NB}__${date}`,
-    notebookId: NB,
-    date,
-    lines,
-    updatedAt: 1,
-  };
+  return { id: `${NB}__${date}`, notebookId: NB, date, lines, updatedAt: 1 };
 }
 
-const review = (pages: Page[], before: Page[] = [], learned = {}) =>
-  reviewMonth(pages, "2026-11-01", learned, before, TODAY);
+const review = (pages: Page[], learned = {}, floor = 2) =>
+  reviewMonth(pages, "2026-11-01", learned, floor);
 
-describe("the month grid", () => {
-  it("has a cell for every day of the month and no more", () => {
-    const r = review([]);
-    expect(r.days).toHaveLength(30);
-    expect(r.days[0].date).toBe("2026-11-01");
-    expect(r.days[29].date).toBe("2026-11-30");
-  });
+const counts = (pages: Page[], learned = {}, floor = 2) =>
+  Object.fromEntries(
+    review(pages, learned, floor).things.map((t) => [t.word, t.count]),
+  );
 
-  it("knows which days have happened", () => {
-    const r = review([]);
-    expect(r.days.find((d) => d.date === TODAY)?.isToday).toBe(true);
-    expect(r.days.find((d) => d.date === "2026-11-19")?.future).toBe(false);
-    expect(r.days.find((d) => d.date === "2026-11-21")?.future).toBe(true);
-    // the days still to come are not counted as days you failed to write
-    expect(r.daysSoFar).toBe(20);
-  });
-
-  it("ignores pages from other months", () => {
-    const r = review([
-      page("2026-10-31", [line("a", "October")]),
-      page("2026-11-02", [line("b", "November")]),
-      page("2026-12-01", [line("c", "December")]),
+describe("how many times you did a thing", () => {
+  it("counts the thing, not the day", () => {
+    const r = counts([
+      page("2026-11-02", [line("a", "guitar")]),
+      page("2026-11-05", [line("b", "played guitar for an hour")]),
+      page("2026-11-09", [line("c", "Guitar")]),
     ]);
-    expect(r.daysWritten).toBe(1);
+    expect(r.guitar ?? r.Guitar).toBe(3);
   });
 
-  it("counts a blank line as nothing written", () => {
-    const r = review([page("2026-11-02", [line("a", "   ")])]);
-    expect(r.daysWritten).toBe(0);
+  it("does not care whether you ticked it off", () => {
+    // the point of the rewrite: a month is not a scoreboard, and plenty
+    // of things get done without ever being struck through
+    const done = counts([
+      page("2026-11-02", [line("a", "guitar", { struck: true })]),
+      page("2026-11-03", [line("b", "guitar", { struck: true })]),
+    ]);
+    const undone = counts([
+      page("2026-11-02", [line("a", "guitar")]),
+      page("2026-11-03", [line("b", "guitar")]),
+    ]);
+    expect(done.guitar).toBe(2);
+    expect(undone.guitar).toBe(2);
   });
 
-  it("finds the longest unbroken run", () => {
-    const r = review(
-      ["02", "03", "04", "07", "08", "09", "10", "11"].map((d) =>
-        page(`2026-11-${d}`, [line(`l${d}`, "wrote")]),
-      ),
-    );
-    expect(r.streak).toBe(5);
-  });
-});
-
-describe("counting what was finished", () => {
-  it("counts a carried task once, not once per morning", () => {
-    // The bug this guards is the one the weekly tally already made: every
-    // copy of a carried task shares one id, so counting rows scores a task
-    // you dragged through a week seven times.
-    const pages = ["10", "11", "12", "13"].map((d, i) =>
+  it("counts a carried task once, however many mornings it moved", () => {
+    // every copy of a carried task shares one id; counting rows would
+    // score a task dragged through a fortnight a dozen times
+    const pages = ["10", "11", "12", "13"].map((d) =>
       page(`2026-11-${d}`, [
-        line("taxes", "Do the taxes", {
-          rolls: i,
-          struck: d === "13",
+        line("one", "studied", {
           carriedTo: d === "13" ? undefined : `2026-11-${Number(d) + 1}`,
         }),
       ]),
     );
-    const r = review(pages);
-    expect(r.finished).toBe(1);
+    expect(counts(pages, {}, 1)).toEqual({ studied: 1 });
   });
 
-  it("only counts tasks, not notes or events", () => {
-    const r = review([
-      page("2026-11-02", [
-        line("a", "Lunch", { struck: true }),
-        line("b", "a thought", { kind: "note", struck: true }),
-        line("c", "dentist", { kind: "event", struck: true }),
-        line("d", "Big one", { kind: "priority", struck: true }),
-      ]),
-    ]);
-    expect(r.finished).toBe(2);
+  it("counts a word twice in one line only once", () => {
+    expect(
+      counts([page("2026-11-02", [line("a", "guitar guitar")])], {}, 1),
+    ).toEqual({ guitar: 1 });
   });
 
-  it("ignores deleted lines", () => {
-    const r = review([
-      page("2026-11-02", [
-        line("a", "real", { struck: true }),
-        line("b", "gone", { struck: true, deletedAt: 1 }),
-      ]),
+  it("keeps the spelling you actually use", () => {
+    const r = review(
+      [
+        page("2026-11-02", [line("a", "Guitar")]),
+        page("2026-11-03", [line("b", "Guitar")]),
+        page("2026-11-04", [line("c", "guitar")]),
+      ],
+      {},
+      1,
+    );
+    expect(r.things[0].word).toBe("Guitar");
+  });
+
+  it("puts the commonest first", () => {
+    const r = review(
+      [
+        page("2026-11-02", [line("a", "gym"), line("b", "guitar")]),
+        page("2026-11-03", [line("c", "gym")]),
+        page("2026-11-04", [line("d", "gym")]),
+        page("2026-11-05", [line("e", "guitar")]),
+      ],
+      {},
+      1,
+    );
+    expect(r.things.map((t) => [t.word, t.count])).toEqual([
+      ["gym", 3],
+      ["guitar", 2],
     ]);
-    expect(r.finished).toBe(1);
   });
 });
 
-describe("what the month was made of", () => {
-  it("counts each task's drawing once however long it was carried", () => {
-    const pages = ["10", "11", "12"].map((d) =>
-      page(`2026-11-${d}`, [
-        line("g", "gym", { carriedTo: d === "12" ? undefined : "2026-11-12" }),
-      ]),
+describe("what it leaves out", () => {
+  it("drops the words that say nothing about what you did", () => {
+    const r = counts(
+      [
+        page("2026-11-02", [line("a", "go to the gym today")]),
+        page("2026-11-03", [line("b", "need to go to the gym again")]),
+      ],
+      {},
+      1,
     );
-    expect(review(pages).drawings).toEqual([{ icon: "dumbbell", count: 1 }]);
+    expect(Object.keys(r)).toEqual(["gym"]);
   });
 
-  it("ranks them, commonest first", () => {
+  it("drops bare numbers and very short words", () => {
+    const r = counts(
+      [page("2026-11-02", [line("a", "gym x3 at 7 for 45")])],
+      {},
+      1,
+    );
+    expect(Object.keys(r)).toEqual(["gym"]);
+  });
+
+  it("keeps what carries the meaning in “3d art”", () => {
+    const r = counts(
+      [
+        page("2026-11-02", [line("a", "3d art")]),
+        page("2026-11-03", [line("b", "more 3d art")]),
+      ],
+      {},
+      1,
+    );
+    expect(r.art).toBe(2);
+  });
+
+  it("ignores other months, deleted lines and breadcrumbs", () => {
+    const r = counts(
+      [
+        page("2026-10-31", [line("a", "guitar")]),
+        page("2026-12-01", [line("b", "guitar")]),
+        page("2026-11-02", [line("c", "guitar", { deletedAt: 1 })]),
+        page("2026-11-03", [line("d", "guitar", { carriedTo: "2026-11-04" })]),
+        page("2026-11-04", [line("d", "guitar")]),
+      ],
+      {},
+      1,
+    );
+    expect(r.guitar).toBe(1);
+  });
+
+  it("stays quiet about a one-off", () => {
     const r = review([
-      page("2026-11-02", [
-        line("a", "gym"),
-        line("b", "gym again", { id: "b" }),
-        line("c", "coffee"),
-      ]),
-      page("2026-11-03", [line("d", "gym")]),
+      page("2026-11-02", [line("a", "guitar"), line("b", "dentist")]),
+      page("2026-11-03", [line("c", "guitar")]),
     ]);
-    expect(r.drawings[0]).toEqual({ icon: "dumbbell", count: 3 });
-    expect(r.drawings[1]).toEqual({ icon: "coffee", count: 1 });
+    expect(r.things.map((t) => t.word)).toEqual(["guitar"]);
+  });
+
+  it("says so when there is nothing to say", () => {
+    expect(review([]).things).toEqual([]);
+    expect(review([]).written).toBe(0);
+    expect(review([page("2026-11-02", [line("a", "   ")])]).written).toBe(0);
+  });
+
+  it("never runs on past a page's worth", () => {
+    const pages = Array.from({ length: 40 }, (_, i) =>
+      page(`2026-11-${`${(i % 28) + 1}`.padStart(2, "0")}`, [
+        line(`l${i}`, `thing${i % 30} thing${i % 30}`),
+      ]),
+    );
+    expect(review(pages, {}, 1).things.length).toBeLessThanOrEqual(16);
+  });
+});
+
+describe("things written as more than one word", () => {
+  it("is one row, named by the line, not a row per word", () => {
+    // "clean 3" and "kitchen 3" on two rows reads as the page being broken
+    const r = review(
+      ["02", "03", "04"].map((d) =>
+        page(`2026-11-${d}`, [line(`k${d}`, "clean the kitchen")]),
+      ),
+      {},
+      1,
+    );
+    expect(r.things).toHaveLength(1);
+    expect(r.things[0]).toMatchObject({ word: "clean the kitchen", count: 3 });
+  });
+
+  it("keeps the wider word and drops its qualifier", () => {
+    // "practice" only ever turns up inside "guitar practice", so a row for
+    // it under the guitar row counts the same evenings again, vaguer
+    const r = review(
+      [
+        page("2026-11-02", [line("a", "guitar")]),
+        page("2026-11-03", [line("b", "guitar practice")]),
+        page("2026-11-04", [line("c", "guitar")]),
+      ],
+      {},
+      1,
+    );
+    expect(r.things.map((t) => [t.word.toLowerCase(), t.count])).toEqual([
+      ["guitar", 3],
+    ]);
+  });
+
+  it("keeps two words that each stand on their own", () => {
+    const r = review(
+      [
+        page("2026-11-02", [line("a", "gym")]),
+        page("2026-11-03", [line("b", "gym and guitar")]),
+        page("2026-11-04", [line("c", "guitar")]),
+      ],
+      {},
+      1,
+    );
+    expect(r.things.map((t) => t.word).sort()).toEqual(["guitar", "gym"]);
+  });
+
+  it("still finds a drawing for the merged thing", () => {
+    const r = review(
+      ["02", "03"].map((d) =>
+        page(`2026-11-${d}`, [line(`g${d}`, "gym session")]),
+      ),
+      {},
+      1,
+    );
+    expect(r.things[0].word).toBe("gym session");
+    expect(r.things[0].icon).toBe("dumbbell");
+  });
+});
+
+describe("the drawing beside each one", () => {
+  it("comes along when the word has one", () => {
+    const r = review(
+      [
+        page("2026-11-02", [line("a", "gym")]),
+        page("2026-11-03", [line("b", "gym")]),
+      ],
+      {},
+      1,
+    );
+    expect(r.things[0].icon).toBe("dumbbell");
+  });
+
+  it("is simply absent when it doesn't", () => {
+    const r = review([page("2026-11-02", [line("a", "qutabxane")])], {}, 1);
+    expect(r.things[0].icon).toBeNull();
   });
 
   it("respects what the notebook has been taught", () => {
-    const pages = [page("2026-11-02", [line("a", "qutabxane")])];
-    expect(review(pages).drawings).toEqual([]);
-    expect(review(pages, [], { qutabxane: "book" as const }).drawings).toEqual([
-      { icon: "book", count: 1 },
-    ]);
-  });
-});
-
-describe("what it cost", () => {
-  it("names what you kept moving and never did", () => {
-    const r = review([
-      page("2026-11-18", [
-        line("a", "Ring the dentist", { rolls: 9 }),
-        line("d", "Twice over", { rolls: 2 }),
-        // one carry is an ordinary morning, not a cost
-        line("b", "Easy one", { rolls: 1 }),
-        // and a thing you did is not a cost however long it took
-        line("c", "Finished one", { rolls: 12, struck: true }),
-      ]),
-    ]);
-    expect(r.clung.map((c) => c.text)).toEqual([
-      "Ring the dentist",
-      "Twice over",
-    ]);
-    expect(r.clung[0].rolls).toBe(9);
-  });
-
-  it("still counts a deadline missed after the task moved into next month", () => {
-    // The task was carried out of the month, so the only copy left here is
-    // a breadcrumb. Counting only live lines made the miss disappear and
-    // left the month reporting nothing but its successes.
-    const r = review([
-      page("2026-11-10", [
-        line("f", "Send the form", {
-          deadline: "2026-11-12",
-          carriedTo: "2026-12-01",
-          rolls: 4,
-        }),
-      ]),
-    ]);
-    expect(r.deadlines).toEqual({ met: 0, missed: 1 });
-  });
-
-  it("scores a deadline met if any copy of the task was struck", () => {
-    const r = review([
-      page("2026-11-10", [
-        line("x", "Essay", { deadline: "2026-11-15", carriedTo: "2026-11-14" }),
-      ]),
-      page("2026-11-14", [
-        line("x", "Essay", { deadline: "2026-11-15", struck: true }),
-      ]),
-      page("2026-11-11", [line("y", "Form", { deadline: "2026-11-12" })]),
-      page("2026-11-12", [line("z", "Later", { deadline: "2026-11-28" })]),
-    ]);
-    // "Later" is neither: its day has not come, so there is nothing to say
-    expect(r.deadlines).toEqual({ met: 1, missed: 1 });
-  });
-});
-
-describe("the remarks", () => {
-  const manyOn = (weekday: string[], extra = 0) => {
-    const pages = weekday.map((d, i) =>
-      page(`2026-11-${d}`, [line(`f${i}`, "done", { struck: true })]),
+    const r = review(
+      [page("2026-11-02", [line("a", "qutabxane")])],
+      { qutabxane: "book" as const },
+      1,
     );
-    for (let i = 0; i < extra; i++) {
-      pages.push(
-        page(`2026-11-0${(i % 5) + 1}`, [
-          line(`x${i}`, "done", { struck: true }),
-        ]),
-      );
-    }
-    return pages;
-  };
-
-  it("says nothing at all about a month with almost nothing in it", () => {
-    const r = review([page("2026-11-02", [line("a", "one thing")])]);
-    expect(r.remarks).toEqual([]);
+    expect(r.things[0].icon).toBe("book");
   });
 
-  it("won't claim a favourite weekday from a handful of tasks", () => {
-    // four Tuesdays is a coincidence, not a pattern
-    const r = review(manyOn(["03", "10", "17", "24"]));
-    expect(r.remarks.join(" ")).not.toMatch(/Tuesday/);
-  });
-
-  it("names one once the shape is actually there", () => {
-    // Tuesdays carry eight of fourteen — a real lean, not an even spread
-    const pages = [
-      ...["03", "10", "17", "24"].map((d) =>
-        page(`2026-11-${d}`, [
-          line(`t${d}a`, "done", { struck: true }),
-          line(`t${d}b`, "done", { struck: true }),
-        ]),
-      ),
-      ...["04", "05", "06", "11", "12", "13"].map((d) =>
-        page(`2026-11-${d}`, [line(`o${d}`, "done", { struck: true })]),
-      ),
-    ];
-    const r = review(pages);
-    expect(r.finished).toBe(14);
-    expect(r.remarks.join(" ")).toMatch(/You finish most on Tuesdays/);
-  });
-
-  it("stays quiet when the week is evenly spread", () => {
-    // fourteen finished, two on each day: there is no favourite here and
-    // naming one would be the notebook making something up
-    const pages = [
-      "02",
-      "03",
-      "04",
-      "05",
-      "06",
-      "07",
-      "08",
-      "09",
-      "10",
-      "11",
-      "12",
-      "13",
-      "14",
-      "15",
-    ].map((d) =>
-      page(`2026-11-${d}`, [line(`e${d}`, "done", { struck: true })]),
-    );
-    const r = review(pages);
-    expect(r.finished).toBe(14);
-    expect(r.remarks.join(" ")).not.toMatch(/You finish most on/);
-  });
-
-  it("calls out something you have dragged for weeks", () => {
-    const r = review([
-      page("2026-11-18", [line("a", "Ring the dentist", { rolls: 9 })]),
-    ]);
-    expect(r.remarks).toContain("“Ring the dentist” has moved 9 mornings.");
-  });
-
-  it("stays quiet about one you have only moved twice", () => {
-    const r = review([
-      page("2026-11-18", [line("a", "Ring the dentist", { rolls: 2 })]),
-    ]);
-    expect(r.remarks.join(" ")).not.toMatch(/dentist/);
-  });
-
-  it("compares to last month only when both are worth comparing", () => {
-    const thin = review(
-      [page("2026-11-02", [line("a", "x", { struck: true })])],
-      [page("2026-10-02", [line("b", "y", { struck: true })])],
-    );
-    expect(thin.remarks.join(" ")).not.toMatch(/last month/);
-
-    const fat = review(
-      Array.from({ length: 14 }, (_, i) =>
-        page(`2026-11-${`${i + 1}`.padStart(2, "0")}`, [
-          line(`n${i}`, "done", { struck: true }),
-        ]),
-      ),
-      Array.from({ length: 4 }, (_, i) =>
-        page(`2026-10-${`${i + 1}`.padStart(2, "0")}`, [
-          line(`o${i}`, "done", { struck: true }),
-        ]),
-      ),
-    );
-    expect(fat.remarks.join(" ")).toMatch(/10 more finished than last month/);
-  });
-
-  it("never says more than three things", () => {
+  it("counts two things that share a drawing separately", () => {
+    // the whole reason this counts words rather than drawings: studying
+    // and reading both draw a book, and they are not the same thing
     const r = review(
       [
-        ...Array.from({ length: 20 }, (_, i) =>
-          page(`2026-11-${`${i + 1}`.padStart(2, "0")}`, [
-            line(`n${i}`, "done", { struck: true }),
-            line(`c${i}`, "Ring the dentist", { rolls: 11 }),
-          ]),
-        ),
+        page("2026-11-02", [line("a", "study"), line("b", "read")]),
+        page("2026-11-03", [line("c", "study"), line("d", "read")]),
       ],
-      [page("2026-10-02", [line("o", "done", { struck: true })])],
+      {},
+      1,
     );
-    expect(r.remarks.length).toBeLessThanOrEqual(3);
+    expect(r.things.map((t) => t.word).sort()).toEqual(["read", "study"]);
   });
 });

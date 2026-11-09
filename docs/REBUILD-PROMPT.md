@@ -201,41 +201,39 @@ The row is kept even when you clear every line: a deleted row has no timestamp f
 merge to compare, so the next sync can't tell "I cleared this" from "I never had it"
 and puts the old text back. An empty row with a fresh timestamp is the tombstone.
 
-## The month, read back
+## The month, counted
 
-One page behind a ribbon, not a dashboard. No graphs, no percentages, no score:
-the notebook's rule is that the page stays analog, so this is a dot grid, a row
-of the drawings it already makes, and at most three sentences, all in the same
-ink as the writing.
+One page behind a ribbon, answering one question: **how many times did I do
+each thing.** A list — `guitar · 7`, `3d art · 13`, `clean the kitchen · 3` —
+commonest first, each with its margin drawing beside it and a dotted leader
+carrying the eye to the number, like a contents page.
 
-- **A dot grid**, one small circle per day, four steps of ink by how much was
-  written. Dots, not filled tiles in a 7-column grid — that reads as a
-  contribution heatmap, which is the exact look being avoided. Blank days stay
-  as empty rings; the gaps are what you came to see.
-- **What the month was made of**: the margin drawings, counted. Nothing had to
-  be tagged for this to work, which is what makes it worth having.
-- **What it cost**: what you kept moving and never did, and deadlines met
-  against missed.
-- **Two or three observed sentences**, set in italic serif like a margin note.
+The first version of this counted finished days instead: a dot grid of how
+productive each day was, tasks ticked, deadlines met, streaks. It was rightly
+thrown out. A journal is not a scoreboard, most days are not finished, and a
+page that grades the month is a page you stop opening. Build the count.
 
-Two rules run through the maths:
+Four rules, each of which is wrong in a way you only find by looking at real
+output:
 
-- **Count line ids, never lines.** A carried task keeps one id across every
-  copy of itself, so counting rows scores a task dragged through eleven
-  mornings eleven times. The weekly tally made this mistake once already.
-- **Say nothing rather than something shaky.** Every remark has a floor it will
-  not speak beneath — no favourite weekday under a dozen finished tasks or
-  without a real lean, no comparison to last month before the month is far
-  enough along. A notebook that invents patterns is worse than a silent one.
+- **Count by word, not by the margin drawing.** The drawings deliberately lump
+  things together — studying, reading and a lecture all draw a book, and "3d
+  art" draws nothing — so counting icons merges things that are not the same.
+- **Count line ids, not lines.** A task carried through eleven mornings is one
+  thing you wrote down, not eleven.
+- **Words that only ever appear together are one thing**, named by the line
+  itself. Otherwise "clean the kitchen" written three times shows up as
+  `clean · 3` and `kitchen · 3` on two rows, which reads as the page being
+  broken.
+- **A word that never appears without a wider one is its qualifier**, and goes.
+  "practice" only ever turns up inside "guitar practice", so a row for it under
+  the guitar row counts the same evenings again under a vaguer name.
 
-Two things that are wrong in a way you only find by checking: a single carry is
-an ordinary morning rather than a cost, so the "kept moving" list starts at
-two; and deadlines must be collected from breadcrumbs too, or a missed one
-vanishes from the month it was missed in the moment the task is carried into
-the next month — leaving the page reporting its successes and quietly forgetting
-the rest.
+Filter hard: a long stop-word list, nothing under three letters, no bare
+numbers, and nothing that came up only once. Keep the spelling actually used,
+so the page says "Guitar" if that is how it is written.
 
-## Coming Up
+## Coming Up## Coming Up
 
 A standing panel at the foot of today's page: everything with a deadline, nearest
 first. This is the one place the notebook volunteers something you didn't ask for.
