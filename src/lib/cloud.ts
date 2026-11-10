@@ -6,6 +6,7 @@ import {
   type IconWord,
   type Notebook,
   type Page,
+  type ThingPref,
   type WeekNote,
 } from "@/lib/db";
 import { flushAsync, subscribeJournal } from "@/lib/pageStore";
@@ -238,7 +239,7 @@ async function ensureSignedIn(mode: CloudMode): Promise<User> {
 
 // --- the wire --------------------------------------------------------
 
-type Kind = "pages" | "notebooks" | "weekNotes" | "iconWords";
+type Kind = "pages" | "notebooks" | "weekNotes" | "iconWords" | "thingPrefs";
 
 function pathOf(journalId: string, kind: Kind): string {
   return `journals/${journalId}/${kind}`;
@@ -302,6 +303,19 @@ async function absorbIconWord(remote: IconWord): Promise<boolean> {
   return false;
 }
 
+/** What the month page has been told to show or hide. Newest wins per
+ *  word, and a row is never deleted — "removed" is a stored flag, so it
+ *  can win a merge against a device that still has the thing. */
+async function absorbThingPref(remote: ThingPref): Promise<boolean> {
+  if (!remote?.id || typeof remote.updatedAt !== "number") return false;
+  const mine = await db.thingPrefs.get(remote.id);
+  if (!mine || remote.updatedAt > mine.updatedAt) {
+    await db.thingPrefs.put(remote);
+    return true;
+  }
+  return false;
+}
+
 function announce(adopt: string | null): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
@@ -348,10 +362,11 @@ async function localDocs(
   scope: Set<string> | null,
 ): Promise<Array<[Kind, string, object]>> {
   await flushAsync();
-  const [notebooks, weekNotes, iconWords] = await Promise.all([
+  const [notebooks, weekNotes, iconWords, thingPrefs] = await Promise.all([
     db.notebooks.toArray(),
     db.weekNotes.toArray(),
     db.iconWords.toArray(),
+    db.thingPrefs.toArray(),
   ]);
   const pages = scope
     ? (await Promise.all([...scope].map((id) => db.pages.get(id)))).filter(
@@ -364,6 +379,7 @@ async function localDocs(
     ...pages.map((p) => ["pages", p.id, p] as [Kind, string, object]),
     ...weekNotes.map((w) => ["weekNotes", w.id, w] as [Kind, string, object]),
     ...iconWords.map((w) => ["iconWords", w.id, w] as [Kind, string, object]),
+    ...thingPrefs.map((t) => ["thingPrefs", t.id, t] as [Kind, string, object]),
   ];
 }
 
@@ -478,6 +494,7 @@ export async function startCloud(): Promise<void> {
       listen(config.journalId, "notebooks", absorbNotebook as never),
       listen(config.journalId, "weekNotes", absorbWeekNote as never),
       listen(config.journalId, "iconWords", absorbIconWord as never),
+      listen(config.journalId, "thingPrefs", absorbThingPref as never),
     ]);
     listeners = opened.map((o) => o.stop);
 

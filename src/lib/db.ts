@@ -33,6 +33,14 @@ export interface FocusLine {
   id: string;
   text: string;
 }
+/** One thing you mean to have done by Sunday. Unlike a focus line it is
+ *  not counted or matched against anything — it is written, and then it is
+ *  crossed out or it isn't. It belongs to its week and never carries
+ *  forward: next Monday is a blank one, which is the point of it. */
+export interface WeekGoal {
+  text: string;
+  struck?: boolean;
+}
 
 export interface WeekNote {
   /** `${notebookId}__${weekStart}` */
@@ -41,6 +49,7 @@ export interface WeekNote {
   /** the Monday that starts the week */
   weekKey: DayKey;
   lines: FocusLine[];
+  goal?: WeekGoal;
   updatedAt: number;
 }
 
@@ -58,11 +67,34 @@ export interface IconWord {
   updatedAt: number;
 }
 
+/** What you have told the month page about a thing.
+ *
+ *  Keyed by the word itself, so a removal holds whatever month the word
+ *  turns up in and whatever it gets grouped with. Removing is a stored
+ *  `hidden` rather than a deleted row for the usual reason: an absent row
+ *  cannot win a merge, so the other device would put the thing straight
+ *  back. */
+export interface ThingPref {
+  /** the word, lowercased */
+  id: string;
+  /** never show this again, in any month, until it is added back */
+  hidden?: boolean;
+  /** always show it, even in a month it only came up once */
+  tracked?: boolean;
+  /** show it under this name instead of the word */
+  label?: string;
+  /** the other words of the row it was removed as, so putting it back
+   *  brings the whole thing back rather than a stub of it */
+  with?: string[];
+  updatedAt: number;
+}
+
 const db = new Dexie("marginalia") as Dexie & {
   notebooks: EntityTable<Notebook, "id">;
   pages: EntityTable<Page, "id">;
   weekNotes: EntityTable<WeekNote, "id">;
   iconWords: EntityTable<IconWord, "id">;
+  thingPrefs: EntityTable<ThingPref, "id">;
 };
 
 db.version(1).stores({
@@ -81,6 +113,14 @@ db.version(3).stores({
   pages: "id, notebookId, date, [notebookId+date], updatedAt",
   weekNotes: "id, notebookId, weekKey, [notebookId+weekKey], updatedAt",
   iconWords: "id, updatedAt",
+});
+
+db.version(4).stores({
+  notebooks: "id, order, createdAt",
+  pages: "id, notebookId, date, [notebookId+date], updatedAt",
+  weekNotes: "id, notebookId, weekKey, [notebookId+weekKey], updatedAt",
+  iconWords: "id, updatedAt",
+  thingPrefs: "id, updatedAt",
 });
 
 export { db };
@@ -108,18 +148,34 @@ export async function getWeekNote(
  *  the merge against whatever stale, non-empty copy is still out there. One
  *  small row per week you've ever written a focus point in costs nothing to
  *  keep around. */
+/** Write part of a week's note, keeping the rest.
+ *
+ *  A patch rather than a whole record because the focus lines and the
+ *  week's goal are edited independently: saving one as a whole row would
+ *  wipe the other, and the wipe would then win the next merge on its
+ *  fresher timestamp. */
 export async function saveWeekNote(
   notebookId: string,
   weekKey: DayKey,
-  lines: FocusLine[],
+  patch: { lines?: FocusLine[]; goal?: WeekGoal | null },
 ): Promise<void> {
   const id = weekNoteId(notebookId, weekKey);
-  const keep = lines.filter((l) => l.text.trim().length > 0);
+  const held = await db.weekNotes.get(id);
+  const lines = (patch.lines ?? held?.lines ?? []).filter(
+    (l) => l.text.trim().length > 0,
+  );
+  const goal =
+    patch.goal === undefined ? held?.goal : (patch.goal ?? undefined);
+
   await db.weekNotes.put({
     id,
     notebookId,
     weekKey,
-    lines: keep,
+    lines,
+    // an empty goal is no goal, but the row still has to exist: a deleted
+    // row has nothing for the merge to compare and the other device would
+    // put the old text straight back
+    ...(goal && goal.text.trim() ? { goal } : {}),
     updatedAt: Date.now(),
   });
 }

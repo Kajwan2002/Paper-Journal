@@ -30,8 +30,12 @@ import type { IconId } from "@/lib/icons";
  *  eleven mornings is one thing you wrote down, not eleven. */
 
 export interface Thing {
-  /** the word, in the form it was most often written */
+  /** the word, in the form it was most often written — or the name you
+   *  gave it */
   word: string;
+  /** the words this row stands for, which are what a removal hides and a
+   *  rename is stored against */
+  words: string[];
   /** times it was crossed off — the answer to "how many times did I" */
   done: number;
   /** times it was written down at all, crossed off or not */
@@ -255,11 +259,26 @@ function done(page: Page): Line[] {
  * `pages` may cover more than the month; it is filtered here rather than
  * by the caller so the counts cannot drift from the month on the page.
  */
+/** What the page has been told: hidden words, words to always show, and
+ *  names to show them under. Keyed by the lowercased word. */
+export type ThingPrefs = Record<
+  string,
+  | {
+      hidden?: boolean;
+      tracked?: boolean;
+      label?: string;
+      /** the other words of the row it was removed as */
+      with?: string[];
+    }
+  | undefined
+>;
+
 export function reviewMonth(
   pages: Page[],
   month: DayKey,
   learned: Learned = {},
   floor = 2,
+  prefs: ThingPrefs = {},
 ): MonthReview {
   const from = startOfMonth(month);
   const to = endOfMonth(month);
@@ -284,7 +303,7 @@ export function reviewMonth(
       said.set(line.id, line.text.trim());
       for (const original of line.text.split(/[^\p{L}\p{N}]+/u)) {
         const word = original.toLowerCase();
-        if (!tells(word)) continue;
+        if (!tells(word) || prefs[word]?.hidden) continue;
         let ids = seen.get(word);
         if (!ids) seen.set(word, (ids = new Set()));
         ids.add(line.id);
@@ -305,7 +324,9 @@ export function reviewMonth(
   // and "kitchen · 3" on two rows, which reads as the page being broken.
   // Words that merely overlap are left alone — "guitar" covers both
   // "guitar" and "guitar practice", so it keeps its own larger count.
-  const kept = [...seen.entries()].filter(([, ids]) => ids.size >= floor);
+  const kept = [...seen.entries()].filter(
+    ([word, ids]) => ids.size >= floor || prefs[word]?.tracked,
+  );
 
   // A word that never appears without another one is that other one's
   // qualifier, not a thing of its own: "practice" only ever turns up
@@ -342,11 +363,28 @@ export function reviewMonth(
     for (const member of group) {
       for (const id of crossed.get(member) ?? []) struck.add(id);
     }
+    const named = group.find((w) => prefs[w]?.label?.trim());
     things.push({
-      word,
+      word: named ? prefs[named]!.label!.trim() : word,
+      words: group,
       done: struck.size,
       written: ids.length,
       icon: iconFor(word, learned) ?? iconFor(group[0], learned),
+    });
+  }
+
+  // Something you asked to keep an eye on shows even in a month it never
+  // came up in — an empty row is the honest answer to "how often did I do
+  // this", and a thing that silently vanished would look like a bug.
+  for (const [word, pref] of Object.entries(prefs)) {
+    if (!pref?.tracked || pref.hidden) continue;
+    if (things.some((t) => t.words.includes(word))) continue;
+    things.push({
+      word: pref.label?.trim() || word,
+      words: [word],
+      done: 0,
+      written: 0,
+      icon: iconFor(word, learned),
     });
   }
   // The crossings lead, because they are the answer to the question. When

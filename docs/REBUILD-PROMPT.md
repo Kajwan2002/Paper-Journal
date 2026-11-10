@@ -241,6 +241,28 @@ Filter hard: a long stop-word list, nothing under three letters, no bare
 numbers, and nothing that came up only once. Keep the spelling actually used,
 so the page says "Guitar" if that is how it is written.
 
+**The list is editable, and the edits are per word.** Rename a row, remove it,
+or name something to watch before it has ever come up. A removal holds in every
+month rather than only the one you were looking at — that is the only reading
+of "I want it gone" that isn't annoying — which is why the prefs key on the
+word and not on the row: a row is a thing of the moment, two words this month
+and one the next, while the word doesn't move. Removing is a stored `hidden`
+flag rather than a deleted row, for the usual merge reason. Each removed word
+also remembers the others it was taken out alongside, or putting "add excel"
+back brings back a lone "add".
+
+## One goal for the week
+
+A single line above the focus lines: written, then crossed out or not. Not
+counted, not matched against anything, and it never carries forward — next
+Monday is a blank one, which is the point of it.
+
+It shares the week's stored note with the focus lines, so that note has to be
+written as a **patch** rather than a whole row. Saving either one wholesale
+wipes the other, and the wipe then wins the next merge on its fresher
+timestamp. Clearing the goal keeps the row for the same reason a cleared focus
+line does.
+
 ## Coming Up## Coming Up
 
 A standing panel at the foot of today's page: everything with a deadline, nearest
