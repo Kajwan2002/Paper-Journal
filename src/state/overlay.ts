@@ -3,7 +3,8 @@ import { create } from "zustand";
 /** Transient UI overlays that sit on top of the open book. Not persisted;
  *  only ever one is open at a time, so they can't stack into a modal pile. */
 
-export type OverlayKind = "month" | "review" | "search" | "loops" | "settings";
+export type OverlayKind =
+  "month" | "review" | "search" | "loops" | "goals" | "settings";
 
 interface OverlayState {
   open: OverlayKind | null;

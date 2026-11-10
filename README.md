@@ -80,11 +80,14 @@ npm run fonts        # re-download the self-hosted font subsets
   is yours to keep: rename anything, remove anything (gone in _every_ month,
   not just this one, until you put it back), and name something to keep an eye
   on before it has ever come up.
-- **One goal for the week.** A single line at the top of the week's box —
-  "Finish my game" — written, then crossed out or not. Separate from the focus
-  lines under it: those are things to keep doing, counted and tallied, this is
-  one thing to have done by Sunday. It never carries forward; next Monday is a
-  blank one, which is the point of it.
+- **This week's goals**, behind the tab on the edge of the paper. Not on the
+  page itself: a goal you read past every time you write a line is a goal that
+  nags. Tap the tab and the card comes up — as many goals as the week needs,
+  each written and then crossed out or not. Separate from the focus lines:
+  those are things to keep doing, counted and tallied, these are things to have
+  done by Sunday. They never carry forward; next Monday is a blank card, which
+  is the point of them. The dots on the tab say how many there are and how many
+  are done, and nothing else.
 - **Search.** `⌘/Ctrl+F` or `/`. Filter by kind — every `★` you never finished,
   every event, every idea.
 - **A year ago.** The foot of each page quietly shows what you wrote on that day

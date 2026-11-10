@@ -38,6 +38,7 @@ export interface FocusLine {
  *  crossed out or it isn't. It belongs to its week and never carries
  *  forward: next Monday is a blank one, which is the point of it. */
 export interface WeekGoal {
+  id: string;
   text: string;
   struck?: boolean;
 }
@@ -49,7 +50,11 @@ export interface WeekNote {
   /** the Monday that starts the week */
   weekKey: DayKey;
   lines: FocusLine[];
-  goal?: WeekGoal;
+  goals?: WeekGoal[];
+  /** the single goal this began as, before there could be more than one.
+   *  Read, never written: a week written by a device still on the old
+   *  version shouldn't quietly lose its goal on the way across. */
+  goal?: { text: string; struck?: boolean };
   updatedAt: number;
 }
 
@@ -140,6 +145,18 @@ export async function getWeekNote(
   return db.weekNotes.get(weekNoteId(notebookId, weekKey));
 }
 
+/** This week's goals, whichever shape they were written in. The journal
+ *  carried one goal before it carried several, and that one is still on
+ *  the row until the week is next written — so it is read here rather than
+ *  migrated in a schema bump, which would have to guess at every week note
+ *  on every device at once. */
+export function goalsOf(note: WeekNote | undefined): WeekGoal[] {
+  if (note?.goals) return note.goals;
+  const old = note?.goal;
+  if (old && old.text.trim()) return [{ id: "goal", ...old }];
+  return [];
+}
+
 /** Never actually deletes the row, even when you clear every line — a
  *  deleted row has no `updatedAt` for the sync merge to compare against, so
  *  the next pull can't tell "you cleared this on purpose" from "you never
@@ -151,31 +168,33 @@ export async function getWeekNote(
 /** Write part of a week's note, keeping the rest.
  *
  *  A patch rather than a whole record because the focus lines and the
- *  week's goal are edited independently: saving one as a whole row would
- *  wipe the other, and the wipe would then win the next merge on its
- *  fresher timestamp. */
+ *  week's goals are edited in two different places: saving one as a whole
+ *  row would wipe the other, and the wipe would then win the next merge on
+ *  its fresher timestamp. */
 export async function saveWeekNote(
   notebookId: string,
   weekKey: DayKey,
-  patch: { lines?: FocusLine[]; goal?: WeekGoal | null },
+  patch: { lines?: FocusLine[]; goals?: WeekGoal[] },
 ): Promise<void> {
   const id = weekNoteId(notebookId, weekKey);
   const held = await db.weekNotes.get(id);
   const lines = (patch.lines ?? held?.lines ?? []).filter(
     (l) => l.text.trim().length > 0,
   );
-  const goal =
-    patch.goal === undefined ? held?.goal : (patch.goal ?? undefined);
+  const goals = (patch.goals ?? goalsOf(held)).filter(
+    (g) => g.text.trim().length > 0,
+  );
 
   await db.weekNotes.put({
     id,
     notebookId,
     weekKey,
     lines,
-    // an empty goal is no goal, but the row still has to exist: a deleted
+    // an empty list is no goals, but the row still has to exist: a deleted
     // row has nothing for the merge to compare and the other device would
-    // put the old text straight back
-    ...(goal && goal.text.trim() ? { goal } : {}),
+    // put the old text straight back. The old single `goal` is dropped on
+    // the way through, now that it has been folded into the list.
+    goals,
     updatedAt: Date.now(),
   });
 }

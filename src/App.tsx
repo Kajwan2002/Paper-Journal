@@ -21,6 +21,7 @@ import { MonthJump } from "@/components/MonthJump";
 import { Search } from "@/components/Search";
 import { OpenLoops } from "@/components/OpenLoops";
 import { MonthReview } from "@/components/MonthReview";
+import { WeekGoals } from "@/components/WeekGoals";
 import { Settings } from "@/components/Settings";
 import "./app.css";
 
@@ -255,6 +256,9 @@ export function App() {
       ) : null}
       {current && overlay === "loops" ? (
         <OpenLoops notebookId={current.id} onClose={closeOverlay} />
+      ) : null}
+      {current && overlay === "goals" ? (
+        <WeekGoals notebookId={current.id} date={date} onClose={closeOverlay} />
       ) : null}
       {current && overlay === "settings" ? (
         <Settings

@@ -20,6 +20,7 @@ import { useOverlay } from "@/state/overlay";
 import { RuledLines } from "@/components/RuledLines";
 import { DueSoon } from "@/components/DueSoon";
 import { WeekFocus } from "@/components/WeekFocus";
+import { GoalTab } from "@/components/WeekGoals";
 import { LineIcon } from "@/components/LineIcon";
 import { iconFor, type Learned } from "@/lib/iconfor";
 import { useLearned } from "@/lib/useLearned";
@@ -101,6 +102,8 @@ export function DailyPage({
           <Marginalia key={date} notebookId={notebookId} date={date} />
         ) : null}
       </div>
+
+      {interactive ? <GoalTab notebookId={notebookId} date={date} /> : null}
 
       {interactive && !today ? (
         <button

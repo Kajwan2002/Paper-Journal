@@ -112,127 +112,130 @@ export function MonthReview({ notebookId, anchorDate, onClose }: Props) {
         </button>
       </div>
 
+      {/* the list is the only part that scrolls — what you can do to it
+          stays put at the bottom of the card, where a long month would
+          otherwise push it off the end */}
       <div className="sheet__body">
-        {review === null ? null : (
-          <>
-            {review.things.length === 0 ? (
-              <p className="mrev__empty">
-                {review.written === 0
-                  ? "Nothing written this month."
-                  : "Nothing has come up more than once yet."}
-              </p>
-            ) : (
-              <ul className="mrev__things">
-                {review.things.map((thing) => (
-                  <li key={thing.words.join(" ")} className="mrev__thing">
-                    <span className="mrev__mark" aria-hidden="true">
-                      {thing.icon ? (
-                        <LineIcon icon={thing.icon} className="mrev__icon" />
-                      ) : null}
-                    </span>
+        {review === null ? null : review.things.length === 0 ? (
+          <p className="mrev__empty">
+            {review.written === 0
+              ? "Nothing written this month."
+              : "Nothing has come up more than once yet."}
+          </p>
+        ) : (
+          <ul className="mrev__things">
+            {review.things.map((thing) => (
+              <li key={thing.words.join(" ")} className="mrev__thing">
+                <span className="mrev__mark" aria-hidden="true">
+                  {thing.icon ? (
+                    <LineIcon icon={thing.icon} className="mrev__icon" />
+                  ) : null}
+                </span>
 
-                    {editing === thing.words.join(" ") ? (
-                      <input
-                        className="mrev__rename"
-                        autoFocus
-                        value={draft}
-                        aria-label={`Rename ${thing.word}`}
-                        onChange={(e) => setDraft(e.target.value)}
-                        onBlur={() => rename(thing)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") rename(thing);
-                          if (e.key === "Escape") setEditing(null);
-                        }}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        className="mrev__word"
-                        title="Rename"
-                        onClick={() => {
-                          setEditing(thing.words.join(" "));
-                          setDraft(thing.word);
-                        }}
-                      >
-                        {thing.word}
-                      </button>
-                    )}
+                {editing === thing.words.join(" ") ? (
+                  <input
+                    className="mrev__rename"
+                    autoFocus
+                    value={draft}
+                    aria-label={`Rename ${thing.word}`}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => rename(thing)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") rename(thing);
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="mrev__word"
+                    title="Rename"
+                    onClick={() => {
+                      setEditing(thing.words.join(" "));
+                      setDraft(thing.word);
+                    }}
+                  >
+                    {thing.word}
+                  </button>
+                )}
 
-                    <span className="mrev__rule" aria-hidden="true" />
-                    <span className="mrev__n">
-                      {thing.done}
-                      {/* nothing to say when you did everything you wrote */}
-                      {thing.done === thing.written ? null : (
-                        <span className="mrev__of"> of {thing.written}</span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      className="mrev__drop"
-                      title="Remove, in every month"
-                      aria-label={`Remove ${thing.word}`}
-                      onClick={() => void hideThing(thing.words)}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="mrev__add">
-              <input
-                className="mrev__add-input"
-                value={adding}
-                placeholder="Keep an eye on something…"
-                aria-label="Add something to watch"
-                onChange={(e) => setAdding(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") add();
-                }}
-              />
-              <button
-                type="button"
-                className="mrev__add-btn"
-                disabled={!adding.trim()}
-                onClick={add}
-              >
-                Add
-              </button>
-            </div>
-
-            {removed.length > 0 ? (
-              <div className="mrev__removed">
+                <span className="mrev__rule" aria-hidden="true" />
+                <span className="mrev__n">
+                  {thing.done}
+                  {/* nothing to say when you did everything you wrote */}
+                  {thing.done === thing.written ? null : (
+                    <span className="mrev__of"> of {thing.written}</span>
+                  )}
+                </span>
                 <button
                   type="button"
-                  className="mrev__removed-toggle"
-                  aria-expanded={showHidden}
-                  onClick={() => setShowHidden(!showHidden)}
+                  className="mrev__drop"
+                  title="Remove, in every month"
+                  aria-label={`Remove ${thing.word}`}
+                  onClick={() => void hideThing(thing.words)}
                 >
-                  {removed.length} removed
-                  {showHidden ? " ·  hide" : " ·  show"}
+                  ×
                 </button>
-                {showHidden ? (
-                  <ul className="mrev__removed-list">
-                    {removed.map((words) => (
-                      <li key={words.join(" ")}>
-                        <button
-                          type="button"
-                          className="mrev__restore"
-                          aria-label={`Put ${words.join(" ")} back`}
-                          onClick={() => void trackThing(...words)}
-                        >
-                          {words.join(" ")} <span aria-hidden="true">+</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-          </>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
+
+      {review === null ? null : (
+        <div className="mrev__foot">
+          <div className="mrev__add">
+            <input
+              className="mrev__add-input"
+              value={adding}
+              placeholder="Keep an eye on something…"
+              aria-label="Add something to watch"
+              onChange={(e) => setAdding(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") add();
+              }}
+            />
+            <button
+              type="button"
+              className="mrev__add-btn"
+              disabled={!adding.trim()}
+              onClick={add}
+            >
+              Add
+            </button>
+          </div>
+
+          {removed.length > 0 ? (
+            <div className="mrev__removed">
+              <button
+                type="button"
+                className="mrev__removed-toggle"
+                aria-expanded={showHidden}
+                onClick={() => setShowHidden(!showHidden)}
+              >
+                {removed.length} removed
+                {showHidden ? " ·  hide" : " ·  show"}
+              </button>
+              {showHidden ? (
+                <ul className="mrev__removed-list">
+                  {removed.map((words) => (
+                    <li key={words.join(" ")}>
+                      <button
+                        type="button"
+                        className="mrev__restore"
+                        aria-label={`Put ${words.join(" ")} back`}
+                        onClick={() => void trackThing(...words)}
+                      >
+                        {words.join(" ")} <span aria-hidden="true">+</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
     </Sheet>
   );
 }

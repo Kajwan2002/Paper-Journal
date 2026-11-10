@@ -11,12 +11,9 @@ import { startOfWeek, weekRangeLabel, type DayKey } from "@/lib/date";
 import {
   focusRows,
   loadFocusLines,
-  loadGoal,
   newFocusLine,
   saveFocusLines,
-  saveGoal,
   type FocusLine,
-  type WeekGoal,
 } from "@/lib/focus";
 import "./week-focus.css";
 
@@ -85,10 +82,6 @@ function withTrailingBlank(lines: FocusLine[]): FocusLine[] {
 export function WeekFocus({ notebookId, date }: Props) {
   const weekStart = startOfWeek(date);
   const [lines, setLines] = useState<FocusLine[] | null>(null);
-  const [goal, setGoal] = useState<WeekGoal>({ text: "" });
-  const goalTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
   const [tally, setTally] = useState<Map<string, Tally>>(new Map());
   // the trailing blank line only needs to exist while you might type into
   // it. Showing it the rest of the time read as a gap left for no reason —
@@ -116,9 +109,6 @@ export function WeekFocus({ notebookId, date }: Props) {
     void loadFocusLines(notebookId, date).then((got) => {
       if (alive) setLines(withTrailingBlank(got));
     });
-    void loadGoal(notebookId, date).then((got) => {
-      if (alive) setGoal(got);
-    });
     reloadTally();
     return () => {
       alive = false;
@@ -136,7 +126,6 @@ export function WeekFocus({ notebookId, date }: Props) {
         void loadFocusLines(notebookId, date).then((got) => {
           setLines(withTrailingBlank(got));
         });
-        void loadGoal(notebookId, date).then(setGoal);
       }, 700);
     });
     return () => {
@@ -154,17 +143,6 @@ export function WeekFocus({ notebookId, date }: Props) {
           date,
           next.filter((l) => l.text.trim().length > 0),
         );
-      }, 500);
-    },
-    [notebookId, date],
-  );
-
-  const commitGoal = useCallback(
-    (next: WeekGoal) => {
-      setGoal(next);
-      if (goalTimer.current) clearTimeout(goalTimer.current);
-      goalTimer.current = setTimeout(() => {
-        void saveGoal(notebookId, date, next);
       }, 500);
     },
     [notebookId, date],
@@ -264,32 +242,6 @@ export function WeekFocus({ notebookId, date }: Props) {
       }}
     >
       <p className="weekfocus__head">This week · {weekRangeLabel(weekStart)}</p>
-
-      <div
-        className={`weekfocus__goal ${goal.struck ? "weekfocus__goal--done" : ""}`}
-      >
-        <button
-          type="button"
-          className="weekfocus__goal-mark"
-          aria-pressed={goal.struck === true}
-          aria-label={
-            goal.struck ? `Not done: ${goal.text}` : `Done: ${goal.text}`
-          }
-          disabled={!goal.text.trim()}
-          onClick={() => commitGoal({ ...goal, struck: !goal.struck })}
-        >
-          {goal.struck ? "✓" : "◇"}
-        </button>
-        <input
-          className="weekfocus__goal-input"
-          type="text"
-          value={goal.text}
-          placeholder="One goal for the week"
-          aria-label="This week's goal"
-          onChange={(e) => commitGoal({ ...goal, text: e.target.value })}
-        />
-        <span className="weekfocus__goal-strike" aria-hidden="true" />
-      </div>
 
       <div className="weekfocus__lines">
         {visible.map((line) => {
