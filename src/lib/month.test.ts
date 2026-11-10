@@ -236,13 +236,25 @@ describe("what it leaves out", () => {
     expect(r.things).toEqual([]); // neither came up twice
   });
 
-  it("never runs on past a page's worth", () => {
-    const pages = Array.from({ length: 40 }, (_, i) =>
+  it("shows every thing a real month has in it, not a screenful", () => {
+    // the list used to stop at sixteen, which read as the page being
+    // broken: "I can't see anything below Praktikum". It scrolls now.
+    const pages = Array.from({ length: 24 }, (_, i) =>
       page(`2026-11-${`${(i % 28) + 1}`.padStart(2, "0")}`, [
-        line(`l${i}`, `thing${i % 30} thing${i % 30}`),
+        line(`l${i}`, `thing${i % 24}`),
+        line(`m${i}`, `thing${i % 24}`),
       ]),
     );
-    expect(review(pages, {}, 1).things.length).toBeLessThanOrEqual(16);
+    expect(review(pages).things).toHaveLength(24);
+  });
+
+  it("has a ceiling, so a pathological notebook can't render forever", () => {
+    const pages = Array.from({ length: 120 }, (_, i) =>
+      page(`2026-11-${`${(i % 28) + 1}`.padStart(2, "0")}`, [
+        line(`l${i}`, `thing${i % 120}`),
+      ]),
+    );
+    expect(review(pages, {}, 1).things).toHaveLength(50);
   });
 });
 

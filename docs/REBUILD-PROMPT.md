@@ -251,17 +251,26 @@ flag rather than a deleted row, for the usual merge reason. Each removed word
 also remembers the others it was taken out alongside, or putting "add excel"
 back brings back a lone "add".
 
-## One goal for the week
+## This week's goals
 
-A single line above the focus lines: written, then crossed out or not. Not
-counted, not matched against anything, and it never carries forward — next
-Monday is a blank one, which is the point of it.
+Behind a tab on the outer edge of the paper, not on the page. A goal you have
+to read past every time you write a line is a goal that nags, and this is a
+notebook, not a performance review — so it lives where a bookmark lives, and
+the only thing it says from a distance is a dot per goal, filled once that one
+is crossed off. The card behind it holds as many goals as the week needs:
+written, then crossed out or not. Not counted, not matched against anything,
+and never carried forward — next Monday is a blank card, which is the point.
 
-It shares the week's stored note with the focus lines, so that note has to be
+They share the week's stored note with the focus lines, so that note has to be
 written as a **patch** rather than a whole row. Saving either one wholesale
 wipes the other, and the wipe then wins the next merge on its fresher
-timestamp. Clearing the goal keeps the row for the same reason a cleared focus
+timestamp. Clearing them keeps the row for the same reason a cleared focus
 line does.
+
+This began as a single `goal` on the week note, and a note still carrying one
+is read as a list of one rather than migrated in a schema bump — a migration
+would have to guess at every week note on every device at once, and the shape
+is gone from the row the next time that week is written anyway.
 
 ## Coming Up## Coming Up
 

@@ -1,0 +1,205 @@
+/* The tab on the edge of the paper, and the card behind it.
+
+   A goal you have to read past every time you write a line is a goal that
+   nags, so this doesn't sit on the page. It sits where a bookmark sits —
+   half out of the paper, there when you look for it. */
+
+.goaltab {
+  position: absolute;
+  right: 0;
+  /* clear of the week's card above it, and of the dog-ear below */
+  top: 38%;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.26rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-right: 0;
+  border-radius: 4px 0 0 4px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--paper-shade) 70%, var(--paper)),
+    var(--paper-shade)
+  );
+  box-shadow: -2px 2px 5px -3px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  /* a nudge out of the page rather than a size change: growing the tab
+     under the cursor moves the thing you are about to press */
+  transition: transform 0.14s ease;
+}
+/* the thread down its outer edge — the one bit of colour, so the eye can
+   find it without the tab having to shout */
+.goaltab::after {
+  content: "";
+  position: absolute;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  right: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--thread) 70%, transparent);
+}
+.goaltab:hover,
+.goaltab:focus-visible {
+  transform: translateX(-3px);
+}
+.goaltab__word {
+  writing-mode: vertical-rl;
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.goaltab:hover .goaltab__word {
+  color: var(--oxblood);
+}
+.goaltab__dots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.goaltab__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.goaltab__dot--done {
+  background: var(--thread);
+  border-color: var(--thread);
+}
+
+@media (max-width: 680px) {
+  .goaltab {
+    top: 34%;
+  }
+}
+
+/* the card */
+.wgoals__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.wgoals__dates {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.wgoals__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wgoals__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2rem minmax(0, 1fr) 1.1rem;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0;
+}
+.wgoals__row + .wgoals__row {
+  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.wgoals__mark {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    color 0.14s ease,
+    transform 0.12s ease;
+}
+.wgoals__mark:hover:not(:disabled) {
+  color: var(--oxblood);
+}
+.wgoals__mark:active:not(:disabled) {
+  transform: scale(0.82);
+}
+.wgoals__mark:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.wgoals__input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 1rem;
+  color: var(--ink);
+  outline: none;
+  caret-color: var(--oxblood);
+}
+.wgoals__input::placeholder {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+/* struck through by hand, the same gesture as a line on the page */
+.wgoals__strike {
+  position: absolute;
+  left: 1.5rem;
+  right: 1.4rem;
+  top: 50%;
+  height: 1.5px;
+  background: color-mix(in srgb, var(--ink-soft) 80%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.3s cubic-bezier(0.5, 0, 0.25, 1);
+  pointer-events: none;
+}
+.wgoals__row--done .wgoals__strike {
+  transform: scaleX(1);
+}
+.wgoals__row--done .wgoals__input {
+  color: var(--ink-faint);
+}
+.wgoals__row--done .wgoals__mark {
+  color: var(--thread);
+}
+
+.wgoals__drop {
+  justify-self: end;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  padding: 0.1rem 0.15rem;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+.wgoals__row:hover .wgoals__drop,
+.wgoals__drop:focus-visible {
+  opacity: 1;
+}
+.wgoals__drop:hover {
+  color: var(--oxblood);
+}
+@media (hover: none) {
+  .wgoals__drop {
+    opacity: 0.4;
+  }
+}
+
+.wgoals__note {
+  margin: 1rem 0 0.1rem;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+}

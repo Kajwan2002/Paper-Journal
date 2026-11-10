@@ -7,6 +7,10 @@
   grid-template-columns: 2rem 1fr 2rem;
   align-items: baseline;
   gap: 0.3rem;
+  /* a clean edge for the list to disappear under, now that a long month
+     scrolls behind it */
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .mrev__title {
   text-align: center;
@@ -33,7 +37,7 @@
 }
 
 .mrev__things {
-  margin: 0.5rem 0 0;
+  margin: 0.35rem 0 0.2rem;
   padding: 0;
   list-style: none;
 }
@@ -148,12 +152,20 @@
   }
 }
 
+/* What you can do to the list, kept below it rather than after it: a long
+   month scrolls, and the row you add things with shouldn't scroll away
+   with it. */
+.mrev__foot {
+  flex: none;
+  margin-top: 0.2rem;
+}
+
 /* Adding one back, or naming something to watch before it has come up. */
 .mrev__add {
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
-  margin-top: 0.9rem;
+  margin-top: 0.7rem;
   padding-top: 0.6rem;
   border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
 }

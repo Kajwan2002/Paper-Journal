@@ -12,6 +12,7 @@
 import {
   getPage,
   getWeekNote,
+  goalsOf,
   pageId,
   saveWeekNote,
   type FocusLine,
@@ -101,22 +102,27 @@ export async function saveFocusLines(
   notifyJournal();
 }
 
-/** This week's one goal, if there is one. */
-export async function loadGoal(
-  notebookId: string,
-  date: DayKey,
-): Promise<WeekGoal> {
-  const note = await getWeekNote(notebookId, startOfWeek(date));
-  return note?.goal ?? { text: "" };
+export function newGoal(text = ""): WeekGoal {
+  return { id: newId(), text };
 }
 
-export async function saveGoal(
+/** What you mean to have done by Sunday. Kept off the page itself — it is
+ *  behind the tab on the edge of the paper — because a goal you have to
+ *  look past every time you write a line is a goal that nags. */
+export async function loadGoals(
   notebookId: string,
   date: DayKey,
-  goal: WeekGoal,
+): Promise<WeekGoal[]> {
+  return goalsOf(await getWeekNote(notebookId, startOfWeek(date)));
+}
+
+export async function saveGoals(
+  notebookId: string,
+  date: DayKey,
+  goals: WeekGoal[],
 ): Promise<void> {
   await saveWeekNote(notebookId, startOfWeek(date), {
-    goal: goal.text.trim() ? goal : null,
+    goals: goals.filter((g) => g.text.trim().length > 0),
   });
   notifyJournal();
 }

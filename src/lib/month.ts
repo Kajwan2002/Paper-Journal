@@ -230,6 +230,14 @@ const EMPTY = new Set([
   "small",
 ]);
 
+/** As many rows as a month could sanely have. Not a page's worth — the
+ *  list scrolls, and cutting it at a screenful was read as the page being
+ *  broken ("I can't see anything below Praktikum"). High enough that a
+ *  real month never reaches it; a ceiling at all only so a pathological
+ *  notebook can't render a thousand rows. Anything you don't want to see
+ *  is removed, which is the honest control and holds in every month. */
+const MOST = 50;
+
 /** Worth counting: long enough to mean something, not furniture, not a
  *  bare number. "3d" survives on the digit, "x3" does not on the length. */
 function tells(word: string): boolean {
@@ -399,7 +407,7 @@ export function reviewMonth(
   return {
     month: from,
     title: monthTitle(from),
-    things: things.slice(0, 16),
+    things: things.slice(0, MOST),
     written: lines.size,
   };
 }
