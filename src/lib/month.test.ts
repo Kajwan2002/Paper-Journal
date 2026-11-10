@@ -348,3 +348,88 @@ describe("the drawing beside each one", () => {
     expect(r.things.map((t) => t.word).sort()).toEqual(["read", "study"]);
   });
 });
+
+describe("the list is yours to keep", () => {
+  const month = [
+    page("2026-11-02", [line("a", "guitar"), line("b", "add excel")]),
+    page("2026-11-03", [line("c", "guitar"), line("d", "add excel")]),
+  ];
+
+  it("removes a thing, and keeps it removed", () => {
+    // the row stands for both its words, and the button hides all of
+    // them — hiding one would leave the other behind as a stub row
+    expect(review(month).things.map((t) => t.word)).toContain("add excel");
+    const after = reviewMonth(month, "2026-11-01", {}, 2, {
+      add: { hidden: true },
+      excel: { hidden: true },
+    });
+    expect(after.things.map((t) => t.word)).toEqual(["guitar"]);
+  });
+
+  it("removes it from every other month too, not just this one", () => {
+    // the hiding is keyed on the word, so it holds whatever month the
+    // word turns up in and whatever it gets grouped with
+    const december = [
+      page("2026-12-04", [line("x", "add excel")]),
+      page("2026-12-05", [line("y", "add excel")]),
+    ];
+    const r = reviewMonth(december, "2026-12-01", {}, 2, {
+      add: { hidden: true },
+      excel: { hidden: true },
+    });
+    expect(r.things).toEqual([]);
+  });
+
+  it("knows which words a row stands for, so a removal can name them", () => {
+    const r = review(
+      ["02", "03"].map((d) =>
+        page(`2026-11-${d}`, [line(`k${d}`, "clean the kitchen")]),
+      ),
+      {},
+      1,
+    );
+    expect(r.things[0].words.sort()).toEqual(["clean", "kitchen"]);
+  });
+
+  it("shows something you asked to watch, however rarely it comes up", () => {
+    const once = [page("2026-11-02", [line("a", "pottery")])];
+    expect(review(once).things).toEqual([]);
+    const watched = reviewMonth(once, "2026-11-01", {}, 2, {
+      pottery: { tracked: true },
+    });
+    expect(watched.things.map((t) => [t.word, t.done])).toEqual([
+      ["pottery", 1],
+    ]);
+  });
+
+  it("shows it even in a month it never came up at all", () => {
+    // an empty row is the honest answer to "how often did I do this"; a
+    // thing that silently vanished would look like a bug
+    const r = reviewMonth([], "2026-11-01", {}, 2, {
+      pottery: { tracked: true },
+    });
+    expect(r.things).toEqual([
+      { word: "pottery", words: ["pottery"], done: 0, written: 0, icon: null },
+    ]);
+  });
+
+  it("does not resurrect something tracked and then removed", () => {
+    const r = reviewMonth([], "2026-11-01", {}, 2, {
+      pottery: { tracked: true, hidden: true },
+    });
+    expect(r.things).toEqual([]);
+  });
+
+  it("calls a thing what you called it", () => {
+    const r = reviewMonth(month, "2026-11-01", {}, 2, {
+      excel: { label: "Spreadsheets" },
+    });
+    // a name on any of the row's words names the row
+    expect(r.things.map((t) => t.word).sort()).toEqual([
+      "Spreadsheets",
+      "guitar",
+    ]);
+    // renaming does not change what it counts
+    expect(r.things.find((t) => t.word === "Spreadsheets")?.done).toBe(2);
+  });
+});

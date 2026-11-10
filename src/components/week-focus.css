@@ -121,3 +121,79 @@
     padding: 0.12rem 0;
   }
 }
+
+/* This week's one goal. Set apart from the focus lines above it: those are
+   things to keep doing and get counted, this is a single thing to have
+   done by Sunday, and it is crossed out by hand rather than tallied. It
+   does not carry forward — next Monday is a blank one, which is the point
+   of it. */
+.weekfocus__goal {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.1rem 0 0.4rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.weekfocus__goal-mark {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    color 0.14s ease,
+    transform 0.12s ease;
+}
+.weekfocus__goal-mark:hover:not(:disabled) {
+  color: var(--oxblood);
+}
+.weekfocus__goal-mark:active:not(:disabled) {
+  transform: scale(0.82);
+}
+.weekfocus__goal-mark:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.weekfocus__goal-input {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  color: var(--ink);
+  width: 100%;
+  outline: none;
+  caret-color: var(--oxblood);
+}
+.weekfocus__goal-input::placeholder {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+/* struck through by hand, the same gesture as a line on the page */
+.weekfocus__goal-strike {
+  position: absolute;
+  left: 1.4rem;
+  right: 0;
+  top: 44%;
+  height: 1.5px;
+  background: color-mix(in srgb, var(--ink-soft) 80%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.3s cubic-bezier(0.5, 0, 0.25, 1);
+  pointer-events: none;
+}
+.weekfocus__goal--done .weekfocus__goal-strike {
+  transform: scaleX(1);
+}
+.weekfocus__goal--done .weekfocus__goal-input {
+  color: var(--ink-faint);
+}
+.weekfocus__goal--done .weekfocus__goal-mark {
+  color: var(--thread);
+}

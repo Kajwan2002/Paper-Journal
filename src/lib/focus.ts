@@ -15,13 +15,14 @@ import {
   pageId,
   saveWeekNote,
   type FocusLine,
+  type WeekGoal,
 } from "@/lib/db";
 import { startOfWeek, weekDays, type DayKey } from "@/lib/date";
 import { getCached, notifyJournal } from "@/lib/pageStore";
 import { isStruck } from "@/lib/rapidlog";
 import { newId } from "@/lib/id";
 
-export type { FocusLine };
+export type { FocusLine, WeekGoal };
 
 export interface FocusRow extends FocusLine {
   /** the line with a trailing "x3" stripped, for display */
@@ -96,7 +97,27 @@ export async function saveFocusLines(
   date: DayKey,
   lines: FocusLine[],
 ): Promise<void> {
-  await saveWeekNote(notebookId, startOfWeek(date), lines);
+  await saveWeekNote(notebookId, startOfWeek(date), { lines });
+  notifyJournal();
+}
+
+/** This week's one goal, if there is one. */
+export async function loadGoal(
+  notebookId: string,
+  date: DayKey,
+): Promise<WeekGoal> {
+  const note = await getWeekNote(notebookId, startOfWeek(date));
+  return note?.goal ?? { text: "" };
+}
+
+export async function saveGoal(
+  notebookId: string,
+  date: DayKey,
+  goal: WeekGoal,
+): Promise<void> {
+  await saveWeekNote(notebookId, startOfWeek(date), {
+    goal: goal.text.trim() ? goal : null,
+  });
   notifyJournal();
 }
 

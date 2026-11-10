@@ -76,7 +76,15 @@ npm run fonts        # re-download the self-hosted font subsets
   worth seeing too, and the page stays true whether the notebook is kept as a
   list or as a log. Counted by word rather than by drawing, because studying
   and reading both draw a book and are not the same thing. Nothing has to be
-  tagged, and it is not a scoreboard — no score, no streak, no share.
+  tagged, and it is not a scoreboard — no score, no streak, no share. The list
+  is yours to keep: rename anything, remove anything (gone in _every_ month,
+  not just this one, until you put it back), and name something to keep an eye
+  on before it has ever come up.
+- **One goal for the week.** A single line at the top of the week's box —
+  "Finish my game" — written, then crossed out or not. Separate from the focus
+  lines under it: those are things to keep doing, counted and tallied, this is
+  one thing to have done by Sunday. It never carries forward; next Monday is a
+  blank one, which is the point of it.
 - **Search.** `⌘/Ctrl+F` or `/`. Filter by kind — every `★` you never finished,
   every event, every idea.
 - **A year ago.** The foot of each page quietly shows what you wrote on that day
