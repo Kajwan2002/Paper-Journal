@@ -45,6 +45,10 @@ import { useCloud, type CloudConfig, type CloudMode } from "@/state/cloud";
  *  just asked for. */
 
 const PUSH_DEBOUNCE_MS = 700;
+/** how long to wait before trying again after a refusal, and the ceiling
+ *  that doubles up to */
+const RETRY_FLOOR_MS = 5_000;
+const RETRY_CEILING_MS = 5 * 60_000;
 /** how long to let the first snapshot land before writing anything up */
 const FIRST_SNAPSHOT_MS = 8000;
 /** set just before leaving for a Google sign-in, so a cold start can tell
@@ -62,6 +66,10 @@ let live: Live | null = null;
 let listeners: Unsubscribe[] = [];
 let stopWatching: (() => void) | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryIn = RETRY_FLOOR_MS;
+/** removes the "try again now" listeners, while sync is meant to be up */
+let unwatchChances: (() => void) | null = null;
 /** the content last written for each document, so our own echo — and a
  *  local save that changed nothing — costs no write */
 const sent = new Map<string, string>();
@@ -428,9 +436,7 @@ function schedulePush(journalId: string, key?: string): void {
   else pending?.add(key);
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
-    void push(journalId).catch((err) =>
-      useCloud.getState().setPhase("error", explain(err)),
-    );
+    void push(journalId).catch((err) => stumble(err));
   }, PUSH_DEBOUNCE_MS);
 }
 
@@ -470,11 +476,70 @@ async function listen(
       settle();
     },
     (err) => {
-      useCloud.getState().setPhase("error", explain(err));
+      // the SDK has stopped listening on this collection by now; `stumble`
+      // is what brings the whole connection back rather than leaving the
+      // journal half-listening
+      stumble(err);
       settle();
     },
   );
   return { stop, first };
+}
+
+// --- picking itself back up ------------------------------------------
+
+/** Something refused us. Say what it was, then try again later.
+ *
+ *  A Firestore listener is not resumable: the SDK hands the error over and
+ *  stops listening for good. So without this, one refusal — a day's free
+ *  quota spent, a dropped stream, a moment when the rules weren't there —
+ *  left the journal quietly unsynced until the app next happened to be
+ *  reloaded, with the dot showing an error nobody was looking at. That is
+ *  the shape "sync isn't reliable" actually takes, and it is this file's
+ *  fault rather than Firestore's.
+ *
+ *  The wait doubles up to five minutes, so a journal whose cloud is out of
+ *  allowance for the day isn't asking every five seconds, and a passing
+ *  stumble is picked up almost at once. */
+function stumble(err: unknown): void {
+  useCloud.getState().setPhase("error", explain(err));
+  // one timer, however many of the five listeners fell over together
+  if (retryTimer) return;
+  const wait = retryIn;
+  retryIn = Math.min(retryIn * 2, RETRY_CEILING_MS);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    if (useCloud.getState().config) void startCloud();
+  }, wait);
+}
+
+/** Try again now rather than on the timer. The network came back, or the
+ *  app was brought to the front — a phone freezes a backgrounded tab, so
+ *  coming back to it is the usual moment a sleeping journal should wake. */
+function retryNow(): void {
+  const state = useCloud.getState();
+  if (state.phase !== "error" || !state.config) return;
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+  retryIn = RETRY_FLOOR_MS;
+  void startCloud();
+}
+
+function watchForAChance(): () => void {
+  const w = typeof window === "undefined" ? null : window;
+  const d = typeof document === "undefined" ? null : document;
+  const onWake = () => retryNow();
+  const onShow = () => {
+    if (!d?.hidden) retryNow();
+  };
+  w?.addEventListener("online", onWake);
+  d?.addEventListener("visibilitychange", onShow);
+  return () => {
+    w?.removeEventListener("online", onWake);
+    d?.removeEventListener("visibilitychange", onShow);
+  };
 }
 
 // --- lifecycle -------------------------------------------------------
@@ -484,6 +549,8 @@ export async function startCloud(): Promise<void> {
   stopCloud();
   const config = useCloud.getState().config;
   if (!config || !cloudAvailable()) return;
+
+  unwatchChances ??= watchForAChance();
 
   try {
     useCloud.getState().setPhase("connecting");
@@ -514,9 +581,11 @@ export async function startCloud(): Promise<void> {
     stopWatching = subscribeJournal((key) =>
       schedulePush(config.journalId, key),
     );
+    // back on speaking terms: the next stumble starts from a short wait
+    retryIn = RETRY_FLOOR_MS;
     useCloud.getState().touched();
   } catch (err) {
-    useCloud.getState().setPhase("error", explain(err));
+    stumble(err);
   }
 }
 
@@ -525,8 +594,12 @@ export function stopCloud(): void {
   listeners = [];
   stopWatching?.();
   stopWatching = null;
+  unwatchChances?.();
+  unwatchChances = null;
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = null;
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
   pending = null;
   sent.clear();
 }
@@ -556,6 +629,11 @@ export function explain(err: unknown, fresh = false): string {
   const message = err instanceof Error ? err.message : String(err ?? "");
   const code = /\(([a-z]+\/[a-z-]+)\)/i.exec(message)?.[1] ?? "";
 
+  if (/resource-exhausted|RESOURCE_EXHAUSTED|quota/i.test(message + code)) {
+    // Firestore's free allowance is counted per *project*, not per app, so
+    // a second app sharing this one spends the same day's reads and writes
+    return "This journal's cloud has used up today's free allowance — syncing will pick up again once it resets.";
+  }
   if (
     (typeof navigator !== "undefined" && !navigator.onLine) ||
     /network-request-failed|offline|unavailable/i.test(message + code)

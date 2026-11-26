@@ -294,6 +294,21 @@ token that had to be remade whenever it lapsed, and **a sync you have to set up 
 is a sync you stop trusting**. If you are tempted by the gist, that is the reason not
 to be.
 
+### Picking itself back up
+
+A Firestore listener is **not resumable**: on an error the SDK hands it over and stops
+listening for good. So the engine has to reconnect itself, or one refusal leaves the
+journal quietly unsynced until the app next happens to be reloaded — with an error on a
+status dot nobody is looking at. That is the shape "sync is unreliable" actually takes,
+and it is the client's fault rather than Firestore's. Every refusal arms one retry whose
+wait doubles from 5 seconds up to 5 minutes, and `online` or the tab coming back to the
+front retries at once, which is how a phone's frozen tab wakes up.
+
+Free-tier allowance is counted **per project, not per app** — 50k reads and 20k writes a
+day shared by everything in it, resetting at midnight Pacific. A second app in the same
+project spends the same allowance, and the error for a spent one is `resource-exhausted`,
+which must be said as "today's free allowance" rather than quoted.
+
 ### How a merge resolves
 
 Per line, not per page, on **two independent clocks**:
