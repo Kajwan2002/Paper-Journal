@@ -167,7 +167,11 @@ export function LineMenu({
     ["End of the month", endOfMonth(date)],
   ];
 
+  // Backwards as well as forwards. Every shortcut here used to point
+  // forward, and a day in the past was refused outright, so writing
+  // something down a day late meant retyping it on the right page.
   const soon: Array<[string, DayKey]> = [
+    ["Yesterday", addDays(date, -1)],
     ["Tomorrow", addDays(date, 1)],
     ["This weekend", nextWeekday(date, 6)],
     ["Next week", addDays(date, 7)],

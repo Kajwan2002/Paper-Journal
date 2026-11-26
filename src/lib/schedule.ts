@@ -3,7 +3,8 @@ import { flushAsync, getCached, prime, writeLines } from "@/lib/pageStore";
 import type { DayKey } from "@/lib/date";
 import { childRangeOf, isOpenTask, type Line } from "@/lib/rapidlog";
 
-/** Filing something for a later day *moves* it there.
+/** Filing something for another day *moves* it there — in either
+ *  direction.
  *
  *  It used to sit where it was written, marked with a chip, and only appear
  *  on its day — so flipping forward to see the week ahead showed empty
@@ -18,15 +19,27 @@ import { childRangeOf, isOpenTask, type Line } from "@/lib/rapidlog";
  *  over a week readable. A move you chose is not that.
  *
  *  Copies still share one line id, which is what lets a strike settle the
- *  rest of the chain later. */
+ *  rest of the chain later.
+ *
+ *  A backwards move does not argue with rollover, and shouldn't: a task
+ *  still unfinished is still unfinished, so tomorrow morning it is carried
+ *  to today from wherever it now sits, leaving its `›` on the day it was
+ *  filed to. Anything already crossed off, and every event, note and idea,
+ *  stays exactly where it was put. Losing an open task quietly on a page
+ *  three weeks back would be the worse failure of the two. */
 export async function moveLineTo(
   notebookId: string,
   from: DayKey,
   line: Line,
   to: DayKey,
 ): Promise<void> {
-  // filing something for today or the past just means "it's open now"
-  if (to <= from) {
+  // re-filing onto the day it is already on isn't a move: it just means
+  // "never mind, it's open now". Earlier days *are* a move — a line put on
+  // the wrong page, or something you did on Monday and only wrote down on
+  // Thursday, belongs on the page you say it does. This used to refuse
+  // every backwards date and quietly do the un-schedule instead, so
+  // picking one looked like nothing happening at all.
+  if (to === from) {
     const here = getCached(pageId(notebookId, from)) ?? [];
     writeLines(
       notebookId,
@@ -83,7 +96,7 @@ export async function moveLineTo(
     ...rest.slice(insertAt),
   ]);
 
-  // and off the day you wrote it — you sent it forward to stop seeing it.
+  // and off the day it was on — a move you chose is a move, not a copy.
   // Through writeLines, not a raw adopt+savePage: writeLines is what turns
   // a line dropped from the array into a tombstone. Without one, a sync
   // pull that still has this day's pre-move copy — the other device simply
