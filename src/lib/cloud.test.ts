@@ -526,6 +526,26 @@ describe("when the cloud refuses us", () => {
     expect(written).toContain(`journals/${JOURNAL}/pages/${pageId(NB, DAY)}`);
   });
 
+  it("waits much longer on a spent allowance than on a passing stumble", async () => {
+    // every reconnection re-reads all five collections, so asking every
+    // five minutes about an allowance that resets at midnight would spend
+    // tomorrow's on finding out about today's
+    useCloud.getState().connect({ mode: "code", journalId: JOURNAL });
+    await startCloud();
+    await settle();
+
+    vi.useFakeTimers();
+    try {
+      refuseEveryone("Firebase: quota exceeded (resource-exhausted).");
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      expect(watchers.size).toBe(0);
+      await vi.advanceTimersByTimeAsync(25 * 60_000);
+      expect(watchers.size).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("comes back on its own even if nothing wakes it, but not at once", async () => {
     useCloud.getState().connect({ mode: "code", journalId: JOURNAL });
     await startCloud();
@@ -535,10 +555,10 @@ describe("when the cloud refuses us", () => {
     // waiting timer is one this test can wind forward
     vi.useFakeTimers();
     try {
-      refuseEveryone("Firebase: quota exceeded (resource-exhausted).");
+      refuseEveryone("Firebase: the stream was lost (internal).");
       expect(watchers.size).toBe(0);
 
-      // a spent allowance mustn't be asked again every second
+      // not asked again every second
       await vi.advanceTimersByTimeAsync(1_500);
       expect(watchers.size).toBe(0);
       expect(useCloud.getState().phase).toBe("error");
