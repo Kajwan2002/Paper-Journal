@@ -3,6 +3,7 @@ import { ensureShelf, type Notebook } from "@/lib/db";
 import { prime, reprime, subscribeJournal } from "@/lib/pageStore";
 import { openLoops, rolloverToToday } from "@/lib/rollover";
 import { settleLegacySchedules } from "@/lib/schedule";
+import { healDoubles } from "@/lib/heal";
 import { comingDue } from "@/lib/deadline";
 import {
   resumeRedirect,
@@ -99,6 +100,12 @@ export function App() {
           // written — walk them onto their day so the week ahead reads right
           await settleLegacySchedules(id);
           if (!alive) return;
+          // a line is only ever live on one page; a move whose second half
+          // never landed, or a sync that was interrupted between the two
+          // pages it touches, can leave two — which reads as "there are two
+          // of this and I can't delete it"
+          await healDoubles(id);
+          if (!alive) return;
         }
         countLoops(id);
         void requestPersistence();
@@ -181,10 +188,14 @@ export function App() {
       if (adopt) setNotebook(adopt);
       const id = adopt ?? useSession.getState().notebookId;
       if (!id) return;
-      void reprime().then(() => {
-        countLoops(id);
-        refreshShelf();
-      });
+      void reprime()
+        // a pull is the other way a second live copy arrives: the page it
+        // was moved to lands before the page it was moved off
+        .then(() => healDoubles(id))
+        .then(() => {
+          countLoops(id);
+          refreshShelf();
+        });
     };
     window.addEventListener("marginalia:pulled", onPulled);
     return () => window.removeEventListener("marginalia:pulled", onPulled);
