@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 interface Watcher {
   path: string;
   onNext: (snap: Snap) => void;
+  onError: (err: unknown) => void;
 }
 interface Change {
   type: "added" | "modified" | "removed";
@@ -51,6 +52,16 @@ function deliver(path: string, ids: string[], pending: boolean): void {
   }));
   for (const w of watchers) {
     if (w.path === path) w.onNext(snapshot(changes, pending));
+  }
+}
+
+/** Firestore refusing every open listener and stopping, the way it does
+ *  when the project is out of free allowance for the day. A real listener
+ *  does not resume after this: the SDK drops it. */
+function refuseEveryone(message: string): void {
+  for (const w of [...watchers]) {
+    watchers.delete(w);
+    w.onError(new Error(message));
   }
 }
 
@@ -123,9 +134,9 @@ vi.mock("firebase/firestore", () => ({
   onSnapshot: (
     ref: { path: string },
     onNext: (snap: Snap) => void,
-    _onError: (err: unknown) => void,
+    onError: (err: unknown) => void,
   ) => {
-    const w: Watcher = { path: ref.path, onNext };
+    const w: Watcher = { path: ref.path, onNext, onError };
     watchers.add(w);
     // the first snapshot: everything already up there, as "added"
     const bucket = world.get(ref.path);
@@ -472,5 +483,73 @@ describe("when a push fails", () => {
     await settle();
 
     expect(written).toContain(`journals/${JOURNAL}/pages/${pageId(NB, DAY)}`);
+  });
+});
+
+describe("when the cloud refuses us", () => {
+  it("says the allowance is spent rather than quoting Firestore", async () => {
+    useCloud.getState().connect({ mode: "code", journalId: JOURNAL });
+    await startCloud();
+    await settle();
+
+    refuseEveryone("Firebase: quota exceeded (resource-exhausted).");
+    expect(useCloud.getState().phase).toBe("error");
+    expect(useCloud.getState().error).toMatch(/allowance/i);
+  });
+
+  it("picks itself back up instead of staying quietly unsynced", async () => {
+    // a listener that errored is gone for good as far as the SDK is
+    // concerned, so the journal used to sit there unsynced, with an error
+    // on a dot nobody was looking at, until the app was next reloaded
+    useCloud.getState().connect({ mode: "code", journalId: JOURNAL });
+    await startCloud();
+    await settle();
+    expect(watchers.size).toBe(5);
+
+    refuseEveryone("Firebase: unavailable (unavailable).");
+    expect(watchers.size).toBe(0);
+
+    // brought back to the front: it tries again at once rather than on the
+    // timer, which is how a phone's frozen tab comes back to life
+    window.dispatchEvent(new Event("online"));
+    await settle();
+
+    expect(watchers.size).toBe(5);
+    expect(useCloud.getState().phase).toBe("live");
+
+    // and it syncs again, which is the only part that actually matters
+    written = [];
+    writeLines(NB, DAY, [
+      { id: "after", kind: "task", text: "Ring the dentist", indent: 0 },
+    ]);
+    await settle();
+    expect(written).toContain(`journals/${JOURNAL}/pages/${pageId(NB, DAY)}`);
+  });
+
+  it("comes back on its own even if nothing wakes it, but not at once", async () => {
+    useCloud.getState().connect({ mode: "code", journalId: JOURNAL });
+    await startCloud();
+    await settle();
+
+    // the clock goes fake *before* the refusal, so the engine's own
+    // waiting timer is one this test can wind forward
+    vi.useFakeTimers();
+    try {
+      refuseEveryone("Firebase: quota exceeded (resource-exhausted).");
+      expect(watchers.size).toBe(0);
+
+      // a spent allowance mustn't be asked again every second
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watchers.size).toBe(0);
+      expect(useCloud.getState().phase).toBe("error");
+
+      // ...but it must be asked again eventually, with nothing but the
+      // timer to make it happen
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(watchers.size).toBe(5);
+      expect(useCloud.getState().phase).toBe("live");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
