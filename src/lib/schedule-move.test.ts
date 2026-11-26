@@ -138,7 +138,35 @@ describe("filing a task for a later day", () => {
     expect(isStruck(on(target)[0])).toBe(true);
   });
 
-  it("filing for today or the past just makes it open now", async () => {
+  it("moves a line backwards onto an earlier page", async () => {
+    // it used to refuse every backwards date and quietly do the
+    // un-schedule instead, so picking one looked like nothing happening
+    const earlier = addDays(T0, -3);
+    adopt(NB, earlier, [newLine("note", "already here")]);
+    const line = newLine("done", "Rang the dentist");
+    adopt(NB, T0, [line]);
+
+    await moveLineTo(NB, T0, line, earlier);
+    await flushAsync();
+
+    expect(textsOn(earlier)).toEqual(["already here", "Rang the dentist"]);
+    expect(textsOn(T0)).toEqual([]);
+  });
+
+  it("takes the list under it backwards too", async () => {
+    const earlier = addDays(T0, -1);
+    const parent = newLine("event", "Shopping");
+    const child = { ...newLine("note", "milk"), indent: 1 as const };
+    adopt(NB, T0, [parent, child]);
+
+    await moveLineTo(NB, T0, parent, earlier);
+    await flushAsync();
+
+    expect(textsOn(earlier)).toEqual(["Shopping", "milk"]);
+    expect(textsOn(T0)).toEqual([]);
+  });
+
+  it("filing onto the day it is already on just makes it open now", async () => {
     const line = { ...newLine("task", "do it now"), due: addDays(T0, 4) };
     adopt(NB, T0, [line]);
 
