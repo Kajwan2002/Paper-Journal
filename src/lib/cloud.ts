@@ -49,6 +49,11 @@ const PUSH_DEBOUNCE_MS = 700;
  *  that doubles up to */
 const RETRY_FLOOR_MS = 5_000;
 const RETRY_CEILING_MS = 5 * 60_000;
+/** A spent daily allowance is not coming back before midnight Pacific, and
+ *  every reconnection re-reads all five collections — so retrying this one
+ *  every five minutes would spend tomorrow's allowance on finding out that
+ *  today's is gone. */
+const OUT_OF_ALLOWANCE_MS = 30 * 60_000;
 /** how long to let the first snapshot land before writing anything up */
 const FIRST_SNAPSHOT_MS = 8000;
 /** set just before leaving for a Google sign-in, so a cold start can tell
@@ -505,7 +510,7 @@ function stumble(err: unknown): void {
   useCloud.getState().setPhase("error", explain(err));
   // one timer, however many of the five listeners fell over together
   if (retryTimer) return;
-  const wait = retryIn;
+  const wait = outOfAllowance(err) ? OUT_OF_ALLOWANCE_MS : retryIn;
   retryIn = Math.min(retryIn * 2, RETRY_CEILING_MS);
   retryTimer = setTimeout(() => {
     retryTimer = null;
@@ -625,6 +630,14 @@ export async function disconnectCloud(): Promise<void> {
  *
  *  `fresh` means this device made the journal rather than joining one, so a
  *  refusal cannot be a mistyped code and must be the rules. */
+/** The project has spent its free allowance for the day. Worth knowing
+ *  apart from any other refusal: it is the one that will still be true in
+ *  five minutes, and asking again costs a full re-read of the journal. */
+function outOfAllowance(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  return /resource-exhausted|RESOURCE_EXHAUSTED|quota/i.test(message);
+}
+
 export function explain(err: unknown, fresh = false): string {
   const message = err instanceof Error ? err.message : String(err ?? "");
   const code = /\(([a-z]+\/[a-z-]+)\)/i.exec(message)?.[1] ?? "";

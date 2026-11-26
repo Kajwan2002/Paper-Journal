@@ -307,7 +307,10 @@ front retries at once, which is how a phone's frozen tab wakes up.
 Free-tier allowance is counted **per project, not per app** — 50k reads and 20k writes a
 day shared by everything in it, resetting at midnight Pacific. A second app in the same
 project spends the same allowance, and the error for a spent one is `resource-exhausted`,
-which must be said as "today's free allowance" rather than quoted.
+which must be said as "today's free allowance" rather than quoted. That one backs off for
+half an hour rather than five minutes: with no local cache, every reconnection re-reads
+all five collections, so a tight retry would spend tomorrow's allowance finding out that
+today's is gone.
 
 ### How a merge resolves
 
